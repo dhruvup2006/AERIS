@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Thermometer, Activity, Terminal, Radio, Send, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Thermometer, Activity, Terminal, Radio, Send, Eye, CheckCircle2, AlertTriangle, AlertOctagon, HelpCircle, Cpu, Copy, Check } from 'lucide-react';
 import { HudButton } from '@/components/ui/hud-button';
 
 export default function RightDeck({
@@ -12,7 +12,15 @@ export default function RightDeck({
 }) {
   const [activeTab, setActiveTab] = useState('telemetry'); // 'telemetry' | 'terminal' | 'push'
   const [pushTemp, setPushTemp] = useState('28.5');
-  const [pushDist, setPushDist] = useState('30.0');
+  const [pushDist, setPushDist] = useState('30');
+  const [logFilter, setLogFilter] = useState('ALL'); // 'ALL' | 'HAZARDS' | 'TELEMETRY'
+  const [copiedLogs, setCopiedLogs] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 2000);
+    return () => clearInterval(timer);
+  }, []);
 
   const sensorKeys = ['NODE_A', 'NODE_B', 'NODE_C', 'NODE_D'];
   const selectedNode = nodes[selectedNodeId] || nodes[sensorKeys[0]] || {};
@@ -21,11 +29,16 @@ export default function RightDeck({
     ? selectedNode.riskInfo || { totalRisk: 0, level: 'SAFE', ledState: 'WHITE' }
     : { totalRisk: 0, level: 'UNCHECKED', ledState: 'OFF' };
 
-  const ledStyles = {
-    OFF: 'bg-zinc-700 border-zinc-600',
-    WHITE: 'bg-white border-zinc-300',
-    YELLOW: 'bg-amber-400 border-amber-400',
-    RED: 'bg-red-400 border-red-400'
+  // Calculate relative update time
+  const getRelativeTime = (isoString) => {
+    if (!isoString) return 'Just now';
+    const updatedTime = new Date(isoString).getTime();
+    if (isNaN(updatedTime)) return 'Just now';
+    const diffSec = Math.max(0, Math.floor((now - updatedTime) / 1000));
+    if (diffSec < 5) return 'Just now';
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    return `${diffMin}m ago`;
   };
 
   const handlePushSensor = (e) => {
@@ -33,308 +46,296 @@ export default function RightDeck({
     onUpdateSensor(selectedNode.id, parseFloat(pushTemp), parseFloat(pushDist));
   };
 
-  return (
-    <div className="bg-[#0a0a0a] border border-[#27272a] p-4 flex flex-col h-full font-sans select-none">
+  const handleCopyLogs = () => {
+    const text = eventLogs.map(l => `[${l.timestamp?.slice(11, 19)}] [${l.type}] ${l.message}`).join('\n');
+    navigator.clipboard.writeText(text);
+    setCopiedLogs(true);
+    setTimeout(() => setCopiedLogs(false), 2000);
+  };
 
-      {/* Top Deck Tabs Bar */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#27272a]">
-        <div className="flex items-center gap-4 text-xs font-bold">
+  // Helper for threshold colors
+  const getTempColor = (t) => {
+    if (t === undefined || t === null) return 'text-zinc-400';
+    if (t >= 35) return 'text-red-400';
+    if (t >= 30) return 'text-amber-400';
+    return 'text-emerald-400';
+  };
+
+  const getDistColor = (d) => {
+    if (d === undefined || d === null) return 'text-zinc-400';
+    if (d < 10) return 'text-red-400';
+    if (d < 25) return 'text-amber-400';
+    return 'text-emerald-400';
+  };
+
+  const roundedDistance = selectedNode.distance !== undefined ? Math.round(selectedNode.distance) : null;
+
+  // Filter terminal logs
+  const filteredLogs = eventLogs.filter(log => {
+    if (logFilter === 'HAZARDS') return log.type?.includes('HAZARD') || log.type?.includes('CRITICAL');
+    if (logFilter === 'TELEMETRY') return log.type?.includes('TELEMETRY') || log.type?.includes('UPDATE');
+    return true;
+  });
+
+  return (
+    <div className="surface-card border border-[#232931] p-4 flex flex-col h-full font-sans select-none overflow-hidden">
+
+      {/* Top Deck Navigation Bar */}
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#232931]">
+        <div className="flex items-center gap-4 text-xs font-medium">
           <button
             onClick={() => setActiveTab('telemetry')}
-            className={`pb-1 transition-all flex items-center gap-1.5 ${
+            className={`pb-1.5 transition-all flex items-center gap-1.5 border-b-2 cursor-pointer ${
               activeTab === 'telemetry'
-                ? 'text-sky-400 border-b-2 border-sky-400'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'text-sky-400 border-sky-400 font-semibold'
+                : 'text-zinc-400 border-transparent hover:text-zinc-200'
             }`}
           >
             <Activity className="w-3.5 h-3.5" />
-            <span>Live Sensors</span>
+            <span>Live sensors</span>
           </button>
 
           <button
             onClick={() => setActiveTab('terminal')}
-            className={`pb-1 transition-all flex items-center gap-1.5 ${
+            className={`pb-1.5 transition-all flex items-center gap-1.5 border-b-2 cursor-pointer ${
               activeTab === 'terminal'
-                ? 'text-sky-400 border-b-2 border-sky-400'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'text-sky-400 border-sky-400 font-semibold'
+                : 'text-zinc-400 border-transparent hover:text-zinc-200'
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
-            <span>Terminal Stream ({eventLogs.length})</span>
+            <span>Terminal log ({eventLogs.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('push')}
-            className={`pb-1 transition-all flex items-center gap-1.5 ${
+            className={`pb-1.5 transition-all flex items-center gap-1.5 border-b-2 cursor-pointer ${
               activeTab === 'push'
-                ? 'text-sky-400 border-b-2 border-sky-400'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'text-sky-400 border-sky-400 font-semibold'
+                : 'text-zinc-400 border-transparent hover:text-zinc-200'
             }`}
           >
             <Radio className="w-3.5 h-3.5" />
-            <span>Telemetry Input</span>
+            <span>Telemetry input</span>
           </button>
         </div>
 
-        <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-zinc-400">
-          <span>Active Node:</span>
-          <span className="font-bold text-sky-400">{selectedNode.id}</span>
-          <span className="text-zinc-600">
-            {isSelectedAccessed ? '(Live)' : '(Unchecked)'}
-          </span>
+        <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-400">
+          <span>Active:</span>
+          <span className="font-mono font-bold text-sky-400 tabular-nums">{selectedNode.id}</span>
         </div>
-      </div>
-
-      {/* 4 Nodes Selector Bar */}
-      <div className="flex items-center gap-4 mb-4 overflow-x-auto pb-1 no-scrollbar text-xs">
-        <span className="text-[10px] text-zinc-500 uppercase shrink-0">$ nodes:</span>
-        {sensorKeys.map((id) => {
-          const n = nodes[id] || {};
-          const isSel = selectedNodeId === id;
-          const isAcc = accessedNodes.has(id);
-          const nLevel = isAcc ? n.riskInfo?.level || 'SAFE' : 'UNCHECKED';
-
-          const textColor = !isAcc
-            ? 'text-zinc-500'
-            : nLevel === 'CRITICAL'
-            ? 'text-red-400'
-            : nLevel === 'WARNING'
-            ? 'text-amber-400'
-            : 'text-sky-400';
-
-          const dotColor = !isAcc
-            ? 'bg-zinc-600'
-            : nLevel === 'CRITICAL'
-            ? 'bg-red-400'
-            : nLevel === 'WARNING'
-            ? 'bg-amber-400'
-            : 'bg-sky-400';
-
-          return (
-            <button
-              key={id}
-              onClick={() => onSelectNode(id)}
-              className={`flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
-                isSel
-                  ? 'text-white font-bold underline decoration-sky-400 underline-offset-4'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${dotColor} ${isSel ? 'animate-pulse' : ''}`} />
-              <span>{id}</span>
-              <span className={`text-[11px] ${textColor}`}>
-                {isAcc ? (n.temperature !== undefined ? `${n.temperature}°C` : 'Live') : '(Unchecked)'}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       {/* Tab 1: Live Sensors Monitor */}
       {activeTab === 'telemetry' && (
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
 
-          {/* Active Node Detail Card */}
-          <div className="bg-[#050505] p-3.5 border border-[#27272a]">
+          {/* Active Node Detail Container */}
+          <div className="surface-elevated p-4">
             
-            <div className="flex items-center justify-between border-b border-[#27272a] pb-2.5 mb-3">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#232931]">
               <div>
-                <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
                   <span>{selectedNode.name || 'Sensor Node'}</span>
-                  <span className="text-[10px] text-zinc-500 font-normal">[{selectedNode.id}]</span>
+                  <span className="text-xs font-mono font-normal text-zinc-400 tabular-nums">[{selectedNode.id}]</span>
                 </h3>
-                <span className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5">
-                  <Radio className={`w-3 h-3 ${isSelectedAccessed ? 'text-sky-400 animate-pulse' : 'text-zinc-600'}`} />
-                  <span>Telemetry Stream: <strong className={isSelectedAccessed ? 'text-sky-400' : 'text-zinc-500'}>
-                    {isSelectedAccessed ? 'ACTIVE' : 'UNACCESSED'}
+                <span className="text-xs text-zinc-400 flex items-center gap-1.5 mt-0.5">
+                  <Radio className={`w-3.5 h-3.5 ${isSelectedAccessed ? 'text-emerald-400' : 'text-zinc-500'}`} />
+                  <span>Telemetry: <strong className={isSelectedAccessed ? 'text-emerald-400' : 'text-zinc-500'}>
+                    {isSelectedAccessed ? 'Online' : 'Unchecked'}
                   </strong></span>
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-                <span>Hardware LED:</span>
-                <div className={`w-2.5 h-2.5 rounded-full border ${ledStyles[riskInfo.ledState] || ledStyles.OFF}`} />
-                <span className="font-bold text-white uppercase">{riskInfo.ledState}</span>
+              {/* Status Badge with Shapes/Icons */}
+              <div className="flex items-center gap-2">
+                {riskInfo.level === 'SAFE' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-800 text-xs font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Safe</span>
+                  </span>
+                )}
+                {riskInfo.level === 'WARNING' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800 text-xs font-medium">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>Caution</span>
+                  </span>
+                )}
+                {riskInfo.level === 'CRITICAL' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-950/60 text-red-400 border border-red-800 text-xs font-medium">
+                    <AlertOctagon className="w-3.5 h-3.5" />
+                    <span>Blocked</span>
+                  </span>
+                )}
+                {riskInfo.level === 'UNCHECKED' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 text-xs font-medium">
+                    <HelpCircle className="w-3.5 h-3.5" />
+                    <span>Unchecked</span>
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* If node is NOT accessed yet */}
+            {/* Unchecked Empty State */}
             {!isSelectedAccessed ? (
-              <div className="bg-[#0c0c0d] p-4 border border-[#27272a] text-center my-2 space-y-3">
-                <div className="flex justify-center text-zinc-600">
-                  <Eye className="w-6 h-6 animate-pulse text-zinc-500" />
+              <div className="surface-card p-5 border border-[#232931] text-center my-2 space-y-3">
+                <div className="flex justify-center">
+                  <Eye className="w-7 h-7 text-zinc-400" />
                 </div>
-                <div className="text-xs text-zinc-300 font-bold uppercase">
-                  Node [{selectedNode.id}] Status Unchecked
+                <div className="text-sm font-semibold text-zinc-200">
+                  Node [{selectedNode.id}] Telemetry Unchecked
                 </div>
-                <p className="text-[11px] text-zinc-500 max-w-sm mx-auto">
-                  Condition is hidden until node is accessed. Click below to connect live telemetry stream and evaluate safety metrics.
+                <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                  Click below to establish connection and monitor live environmental metrics for this room.
                 </p>
-                <div className="flex justify-center pt-2">
+                <div className="pt-2 flex justify-center">
                   <HudButton
-                    style="style1"
                     variant="primary"
+                    size="small"
                     onClick={() => onSelectNode(selectedNode.id)}
                   >
-                    ACCESS NODE
+                    Check node telemetry
                   </HudButton>
                 </div>
               </div>
             ) : (
-              /* Real Sensor Telemetry Displays for Accessed Node */
+              /* Real Sensor Telemetry Displays with Semantic Colors & Gauges */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
 
                 {/* Temperature Display */}
-                <div className="bg-[#0c0c0d] p-3 border border-[#27272a]">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-zinc-400 flex items-center gap-1.5">
-                      <Thermometer className="w-4 h-4 text-red-400" /> Live Temp:
+                <div className="surface-card p-3.5 border border-[#232931]">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="text-zinc-400 flex items-center gap-1.5 font-medium">
+                      <Thermometer className="w-4 h-4 text-zinc-400" /> Temperature
                     </span>
-                    <span className="text-base font-bold text-red-300 font-mono">
-                      {selectedNode.temperature !== undefined ? `${selectedNode.temperature}°C` : '--°C'}
+                    <span className={`text-lg font-bold font-mono tabular-nums ${getTempColor(selectedNode.temperature)}`}>
+                      {selectedNode.temperature !== undefined ? `${selectedNode.temperature.toFixed(1)}°C` : '--°C'}
                     </span>
                   </div>
 
-                  <div className="w-full bg-[#050505] h-2 border border-zinc-800 mb-2">
+                  {/* Temperature Gauge Bar */}
+                  <div className="w-full bg-[#0b0d10] h-2 rounded overflow-hidden mb-2 relative">
                     <div
-                      className={`h-full transition-all duration-300 ${
-                        selectedNode.temperature >= 35 ? 'bg-red-500' : selectedNode.temperature >= 30 ? 'bg-amber-400' : 'bg-sky-400'
+                      className={`h-full transition-all duration-200 ${
+                        selectedNode.temperature >= 35 ? 'bg-red-500' : selectedNode.temperature >= 30 ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}
                       style={{ width: `${Math.min(100, Math.max(0, (((selectedNode.temperature || 22) - 15) / 35) * 100))}%` }}
                     />
                   </div>
 
-                  <div className="flex justify-between text-[9px] text-zinc-500">
-                    <span>Thresholds:</span>
-                    <span>&gt;=35°C (RED)</span>
-                    <span>30 to 35°C (WARN)</span>
+                  <div className="flex justify-between text-xs text-zinc-400">
+                    <span>Target &lt;30°C</span>
+                    <span className="font-mono text-[11px] tabular-nums">Limit 35°C</span>
                   </div>
                 </div>
 
-                {/* Distance / Clearance Display */}
-                <div className="bg-[#0c0c0d] p-3 border border-[#27272a]">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-zinc-400 flex items-center gap-1.5">
-                      <Activity className="w-4 h-4 text-sky-400" /> Live Distance:
+                {/* Distance / Clearance Display (Rounded whole cm) */}
+                <div className="surface-card p-3.5 border border-[#232931]">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="text-zinc-400 flex items-center gap-1.5 font-medium">
+                      <Activity className="w-4 h-4 text-zinc-400" /> Clearance
                     </span>
-                    <span className="text-base font-bold text-sky-400 font-mono">
-                      {selectedNode.distance !== undefined ? `${selectedNode.distance} cm` : '-- cm'}
+                    <span className={`text-lg font-bold font-mono tabular-nums ${getDistColor(roundedDistance)}`}>
+                      {roundedDistance !== null ? `${roundedDistance} cm` : '-- cm'}
                     </span>
                   </div>
 
-                  <div className="w-full bg-[#050505] h-2 border border-zinc-800 mb-2">
+                  {/* Distance Gauge Bar with Threshold Ticks */}
+                  <div className="w-full bg-[#0b0d10] h-2 rounded overflow-hidden mb-2 relative">
                     <div
-                      className={`h-full transition-all duration-300 ${
-                        selectedNode.distance < 10 ? 'bg-red-500' : selectedNode.distance < 25 ? 'bg-amber-400' : 'bg-sky-400'
+                      className={`h-full transition-all duration-200 ${
+                        roundedDistance < 10 ? 'bg-red-500' : roundedDistance < 25 ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}
-                      style={{ width: `${Math.min(100, Math.max(0, ((selectedNode.distance || 250) / 300) * 100))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, ((roundedDistance || 250) / 300) * 100))}%` }}
                     />
+                    {/* 10cm & 25cm Threshold Ticks */}
+                    <div className="absolute top-0 bottom-0 left-[3.33%] w-0.5 bg-red-400/80" title="10cm Critical limit" />
+                    <div className="absolute top-0 bottom-0 left-[8.33%] w-0.5 bg-amber-400/80" title="25cm Safe limit" />
                   </div>
 
-                  <div className="flex justify-between text-[9px] text-zinc-500">
-                    <span>Clearance:</span>
-                    <span>&lt;10cm (RED)</span>
-                    <span>&gt;=25cm (SAFE)</span>
+                  <div className="flex justify-between text-xs text-zinc-400">
+                    <span>Safe &ge;25 cm</span>
+                    <span className="font-mono text-[11px] tabular-nums">Blocked &lt;10 cm</span>
                   </div>
                 </div>
 
               </div>
             )}
 
-            {/* Node Telemetry Status */}
+            {/* Relative Timestamp */}
             {isSelectedAccessed && (
-              <div className="mt-3 pt-2.5 border-t border-zinc-800 flex items-center justify-between text-[11px] text-zinc-400">
-                <span>Risk Status: <strong className={riskInfo.level === 'CRITICAL' ? 'text-red-400' : riskInfo.level === 'WARNING' ? 'text-amber-400' : 'text-sky-400'}>[{riskInfo.level}]</strong></span>
-                <span>Updated: <strong className="text-zinc-300">{selectedNode.lastUpdated ? new Date(selectedNode.lastUpdated).toLocaleTimeString() : 'Live'}</strong></span>
-                <span className="text-sky-400 font-bold">Risk Score = {riskInfo.totalRisk}/100</span>
+              <div className="mt-2 text-right">
+                <span className="font-mono text-[11px] text-zinc-400 tabular-nums">
+                  Updated {getRelativeTime(selectedNode.lastUpdated)}
+                </span>
               </div>
             )}
 
           </div>
 
-          {/* AI Calculated Risk Score & Evaluation Card */}
+          {/* AI Risk Analyzer Component (Simplified to show ONLY Risk Score) */}
           {isSelectedAccessed && (
-            <div className="bg-[#050505] p-3.5 border border-[#27272a] space-y-2">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">AI Risk Engine Analysis</span>
+            <div className="surface-elevated p-3.5 border border-[#232931] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded bg-[#11151a] text-sky-400 border border-[#232931]">
+                  <Cpu className="w-4 h-4" />
                 </div>
-                <span className={`text-xs font-bold px-2 py-0.5 ${
-                  riskInfo.level === 'CRITICAL' ? 'text-red-400 bg-red-950/40 border border-red-800' :
-                  riskInfo.level === 'WARNING' ? 'text-amber-400 bg-amber-950/40 border border-amber-800' :
-                  'text-sky-400 bg-sky-950/40 border border-sky-800'
-                }`}>
-                  AI Risk Score: {riskInfo.totalRisk}/100 [{riskInfo.level}]
-                </span>
+                <h4 className="text-xs font-semibold text-zinc-100 uppercase tracking-wide">AI Risk Analyzer</h4>
               </div>
 
-              <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">
-                {selectedNode.aiDecision?.reason || `Node ${selectedNode.id} telemetry evaluated. Temperature ${selectedNode.temperature}°C & clearance ${selectedNode.distance}cm. Safety state: ${riskInfo.level}.`}
-              </p>
-
-              <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1 border-t border-zinc-900 font-mono">
-                <span>Model: AERIS Risk Agent</span>
-                <span>Recommendation: <strong className={riskInfo.level === 'CRITICAL' ? 'text-red-400' : riskInfo.level === 'WARNING' ? 'text-amber-400' : 'text-sky-400'}>
-                  {selectedNode.aiDecision?.recommended_action || 'SAFE'}
-                </strong></span>
-              </div>
+              <span className={`px-3 py-1 rounded text-xs font-mono font-bold tabular-nums border ${
+                riskInfo.level === 'CRITICAL' ? 'text-red-400 bg-red-950/60 border-red-800' :
+                riskInfo.level === 'WARNING' ? 'text-amber-400 bg-amber-950/60 border-amber-800' :
+                'text-emerald-400 bg-emerald-950/60 border-emerald-800'
+              }`}>
+                Score: {riskInfo.totalRisk}/100
+              </span>
             </div>
           )}
 
-          {/* All 4 Nodes Overview Table */}
-          <div className="bg-[#050505] p-3 border border-[#27272a]">
-            <h4 className="text-xs font-bold text-white uppercase mb-2">All Hardware Sensor Nodes</h4>
-            <div className="space-y-1.5">
+          {/* All 4 Nodes Table (Single selector list) */}
+          <div className="surface-elevated p-3.5">
+            <h4 className="text-xs font-semibold text-zinc-300 mb-2.5 uppercase tracking-wide">Monitored rooms</h4>
+            <div className="space-y-2">
               {sensorKeys.map((id) => {
                 const n = nodes[id] || {};
                 const isAcc = accessedNodes.has(id);
                 const r = isAcc ? n.riskInfo || {} : { level: 'UNCHECKED' };
                 const isSel = selectedNodeId === id;
+                const distRounded = isAcc && n.distance !== undefined ? Math.round(n.distance) : null;
 
-                const statusDot = !isAcc
-                  ? 'bg-zinc-600'
+                const statusColor = !isAcc
+                  ? 'text-zinc-500'
                   : r.level === 'CRITICAL'
-                  ? 'bg-red-400'
+                  ? 'text-red-400'
                   : r.level === 'WARNING'
-                  ? 'bg-amber-400'
-                  : 'bg-sky-400';
-
-                const statusText = !isAcc
-                  ? 'text-zinc-500 font-normal'
-                  : r.level === 'CRITICAL'
-                  ? 'text-red-400 font-bold'
-                  : r.level === 'WARNING'
-                  ? 'text-amber-400 font-bold'
-                  : 'text-sky-400 font-bold';
+                  ? 'text-amber-400'
+                  : 'text-emerald-400';
 
                 return (
                   <div
                     key={id}
                     onClick={() => onSelectNode(id)}
-                    className={`p-2 border flex items-center justify-between text-xs cursor-pointer transition-all ${
-                      isSel ? 'border-sky-400 bg-[#121212]' : 'border-zinc-800 bg-[#0c0c0d] hover:border-zinc-700'
+                    className={`p-2.5 rounded-lg border flex items-center justify-between text-xs cursor-pointer transition-all ${
+                      isSel ? 'border-sky-500 bg-[#1e242c]' : 'border-[#232931] bg-[#11151a] hover:border-zinc-700'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${statusDot}`} />
-                      <span className="font-bold text-white">{id}</span>
-                      <span className="text-zinc-400 text-[11px]">({n.name})</span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-mono font-bold text-zinc-100 tabular-nums">{id}</span>
+                      <span className="text-zinc-400 font-sans">({n.name || id})</span>
                     </div>
 
-                    <div className="flex items-center gap-3 font-mono text-[11px]">
+                    <div className="flex items-center gap-3 font-mono text-xs tabular-nums">
                       {isAcc ? (
                         <>
-                          <span className="text-red-300">{n.temperature}°C</span>
+                          <span className={getTempColor(n.temperature)}>{n.temperature?.toFixed(1)}°C</span>
                           <span className="text-zinc-700">|</span>
-                          <span className="text-sky-400">
-                            {n.distance} cm
-                          </span>
+                          <span className={getDistColor(distRounded)}>{distRounded} cm</span>
                           <span className="text-zinc-700">|</span>
-                          <span className={statusText}>{r.level}</span>
+                          <span className={`font-semibold ${statusColor}`}>{r.level}</span>
                         </>
                       ) : (
-                        <span className="text-zinc-500 italic">Unchecked</span>
+                        <span className="text-zinc-500 italic font-sans text-xs">Unchecked</span>
                       )}
                     </div>
                   </div>
@@ -346,86 +347,154 @@ export default function RightDeck({
         </div>
       )}
 
-      {/* Tab 2: Live Terminal Log */}
+      {/* Tab 2: Terminal Feed (Upgraded Developer Console UI) */}
       {activeTab === 'terminal' && (
-        <div className="flex-1 bg-[#050505] p-3 border border-[#27272a] overflow-y-auto space-y-2 text-[11px] font-mono">
-          <div className="text-sky-400 pb-1 border-b border-zinc-800 text-[10px] flex items-center justify-between">
-            <span>$ serial-telemetry-stream --listen</span>
-            <span>Real-time Hardware Log Feed</span>
+        <div className="flex-1 bg-[#07090c] p-4 rounded-lg border border-[#232931] flex flex-col font-mono text-xs overflow-hidden">
+          
+          {/* Terminal Console Toolbar */}
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#232931] shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-zinc-200 font-semibold">serial-telemetry-stream</span>
+              <span className="text-zinc-500 text-[11px] font-normal">--listen</span>
+            </div>
+
+            {/* Filter Tabs & Copy Action */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-[#11151a] rounded p-0.5 border border-[#232931] text-[11px]">
+                <button
+                  onClick={() => setLogFilter('ALL')}
+                  className={`px-2 py-0.5 rounded cursor-pointer ${logFilter === 'ALL' ? 'bg-sky-500 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  All ({eventLogs.length})
+                </button>
+                <button
+                  onClick={() => setLogFilter('HAZARDS')}
+                  className={`px-2 py-0.5 rounded cursor-pointer ${logFilter === 'HAZARDS' ? 'bg-red-500 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  Hazards
+                </button>
+                <button
+                  onClick={() => setLogFilter('TELEMETRY')}
+                  className={`px-2 py-0.5 rounded cursor-pointer ${logFilter === 'TELEMETRY' ? 'bg-emerald-500 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  Telemetry
+                </button>
+              </div>
+
+              <button
+                onClick={handleCopyLogs}
+                className="p-1.5 rounded bg-[#11151a] hover:bg-[#171c22] border border-[#232931] text-zinc-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-[11px]"
+                title="Copy terminal logs"
+              >
+                {copiedLogs ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
+                <span>{copiedLogs ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
           </div>
 
-          {eventLogs.length > 0 ? (
-            eventLogs.map((log) => (
-              <div key={log.id} className="pb-1.5 border-b border-zinc-900 last:border-0 flex items-start gap-2">
-                <span className="text-zinc-500 text-[10px] shrink-0">{log.timestamp?.slice(11, 19) || '12:00:00'}</span>
-                <span className={`px-1 py-0.2 text-[9px] shrink-0 border ${log.type?.includes('HAZARD') || log.type?.includes('CRITICAL')
-                    ? 'text-red-400 border-red-800'
-                    : log.type?.includes('WARN')
-                      ? 'text-amber-400 border-amber-800'
-                      : 'text-sky-400 border-sky-800'
-                  }`}>
-                  {log.type || 'TELEMETRY'}
-                </span>
-                <span className="text-zinc-300 leading-tight">{log.message}</span>
+          {/* Terminal Console Output Scroll View */}
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 tabular-nums">
+            {filteredLogs.length > 0 ? (
+              filteredLogs.map((log, index) => {
+                const isHazard = log.type?.includes('HAZARD') || log.type?.includes('CRITICAL');
+                const isWarn = log.type?.includes('WARN');
+
+                return (
+                  <div
+                    key={log.id || index}
+                    className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-[#11151a] transition-colors group"
+                  >
+                    {/* Line Index */}
+                    <span className="text-zinc-600 text-[11px] select-none w-5 shrink-0 text-right">
+                      {(index + 1).toString().padStart(2, '0')}
+                    </span>
+
+                    {/* Timestamp */}
+                    <span className="text-zinc-500 text-xs shrink-0">
+                      [{log.timestamp?.slice(11, 19) || '12:00:00'}]
+                    </span>
+
+                    {/* Event Type Badge */}
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 border uppercase ${
+                      isHazard
+                        ? 'text-red-400 bg-red-950/60 border-red-800'
+                        : isWarn
+                        ? 'text-amber-400 bg-amber-950/60 border-amber-800'
+                        : 'text-sky-300 bg-sky-950/60 border-sky-800'
+                    }`}>
+                      {log.type || 'TELEMETRY'}
+                    </span>
+
+                    {/* Log Message Content */}
+                    <span className="text-zinc-200 leading-snug font-sans text-xs flex-1">
+                      {log.message}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-zinc-500 text-center py-12 text-xs font-sans">
+                No telemetry logs matching filter <span className="text-sky-400 font-mono">[{logFilter}]</span>
               </div>
-            ))
-          ) : (
-            <div className="text-zinc-500 text-center py-6">Listening for live serial telemetry logs...</div>
-          )}
+            )}
+          </div>
+
         </div>
       )}
 
       {/* Tab 3: Direct Telemetry Input */}
       {activeTab === 'push' && (
-        <div className="flex-1 bg-[#050505] p-3.5 border border-[#27272a] overflow-y-auto space-y-3 font-mono">
+        <div className="flex-1 bg-[#0b0d10] p-4 rounded-lg border border-[#232931] overflow-y-auto space-y-4 font-sans text-xs">
           <div>
-            <h4 className="text-xs font-bold text-white uppercase flex items-center gap-1.5 mb-1">
-              <Radio className="w-4 h-4 text-sky-400" /> Push Live Telemetry to Node [{selectedNode.id}]
+            <h4 className="text-sm font-semibold text-zinc-100 flex items-center gap-2 mb-1">
+              <Radio className="w-4 h-4 text-sky-400" /> Push sensor telemetry
             </h4>
-            <p className="text-[11px] text-zinc-400">
-              Sends HTTP POST payload directly to Express endpoint <code className="text-sky-400">/api/sensor</code>.
+            <p className="text-xs text-zinc-400">
+              Simulate or override telemetry values for node [{selectedNode.id}].
             </p>
           </div>
 
-          <form onSubmit={handlePushSensor} className="space-y-3 bg-[#0c0c0d] p-3 border border-zinc-800">
+          <form onSubmit={handlePushSensor} className="space-y-3 surface-elevated p-4">
             <div>
-              <label className="text-[11px] text-zinc-400 block mb-1">Target Node:</label>
-              <div className="text-xs font-bold text-sky-400 bg-[#050505] p-2 border border-zinc-800">
+              <label className="text-xs text-zinc-400 block mb-1">Target node:</label>
+              <div className="text-xs font-mono font-bold text-sky-400 bg-[#0b0d10] p-2.5 rounded border border-[#232931] tabular-nums">
                 {selectedNode.id} / {selectedNode.name}
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] text-zinc-400 block mb-1">Temperature (°C):</label>
+              <label className="text-xs text-zinc-400 block mb-1">Temperature (°C):</label>
               <input
                 type="number"
                 step="0.1"
                 value={pushTemp}
                 onChange={(e) => setPushTemp(e.target.value)}
-                className="w-full bg-[#050505] text-xs text-white p-2 border border-zinc-800 focus:outline-none focus:border-sky-400"
+                className="w-full bg-[#0b0d10] text-xs text-zinc-100 p-2.5 rounded border border-[#232931] focus:border-sky-400 font-mono tabular-nums"
                 placeholder="e.g. 28.5"
               />
             </div>
 
             <div>
-              <label className="text-[11px] text-zinc-400 block mb-1">Distance (cm):</label>
+              <label className="text-xs text-zinc-400 block mb-1">Distance (cm):</label>
               <input
                 type="number"
-                step="0.1"
+                step="1"
                 value={pushDist}
                 onChange={(e) => setPushDist(e.target.value)}
-                className="w-full bg-[#050505] text-xs text-white p-2 border border-zinc-800 focus:outline-none focus:border-sky-400"
-                placeholder="e.g. 8 for 8cm debris obstruction"
+                className="w-full bg-[#0b0d10] text-xs text-zinc-100 p-2.5 rounded border border-[#232931] focus:border-sky-400 font-mono tabular-nums"
+                placeholder="e.g. 30"
               />
             </div>
 
             <div className="pt-2 flex justify-center">
               <HudButton
-                style="style1"
                 variant="primary"
+                size="small"
                 onClick={handlePushSensor}
               >
-                POST DATA
+                <Send className="w-3.5 h-3.5" />
+                <span>Post telemetry</span>
               </HudButton>
             </div>
           </form>

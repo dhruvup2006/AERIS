@@ -56,7 +56,7 @@ export default function App() {
       return next;
     });
 
-    // Notify backend bridge of the newly active node target
+    // Notify backend bridge of active node target
     fetch('/api/active-node', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -65,7 +65,6 @@ export default function App() {
   };
 
   const handleUpdateSensor = async (nodeId, temp, distance) => {
-    // Automatically mark updated node as accessed
     setAccessedNodes(prev => {
       const next = new Set(prev);
       next.add(nodeId);
@@ -94,7 +93,7 @@ export default function App() {
         id: Date.now(),
         timestamp: new Date().toISOString(),
         type: riskInfo.level === 'CRITICAL' ? 'HAZARD_ALERT' : 'TELEMETRY_UPDATE',
-        message: `[${nodeId}] Live Telemetry: Temp=${updatedNode.temperature}°C, Dist=${updatedNode.distance}cm -> ${riskInfo.level}`
+        message: `[${nodeId}] Telemetry: ${updatedNode.temperature.toFixed(1)}°C, ${Math.round(updatedNode.distance)}cm -> ${riskInfo.level}`
       };
 
       return {
@@ -131,26 +130,26 @@ export default function App() {
   const eventLogs = systemState?.eventLogs || [];
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#050505] text-zinc-100 overflow-hidden font-sans select-none antialiased relative">
+    <div className="h-screen w-screen flex flex-col bg-[#0b0d10] text-zinc-100 overflow-hidden font-sans select-none antialiased relative">
       
       {/* Background Sparkles Effect */}
-      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+      <div className="absolute inset-0 z-0 opacity-15 pointer-events-none">
         <SparklesCore
           id="tsparticlesbg"
           background="transparent"
           minSize={0.4}
           maxSize={1.2}
-          particleDensity={40}
+          particleDensity={30}
           className="w-full h-full"
           particleColor="#38bdf8"
-          speed={0.5}
+          speed={0.4}
         />
       </div>
 
-      {/* Main Content Layer */}
+      {/* Main Content Container */}
       <div className="relative z-10 flex flex-col h-full w-full overflow-hidden">
 
-        {/* 1. Header */}
+        {/* Header */}
         <Header
           systemState={systemState}
           accessedNodes={accessedNodes}
@@ -160,10 +159,10 @@ export default function App() {
           toggleLiveSimulation={() => setIsLivePolling(!isLivePolling)}
         />
 
-        {/* 2. Main Monitoring Grid */}
-        <main className="flex-1 min-h-0 p-2.5 sm:p-3 lg:p-4 grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-3 lg:gap-4 overflow-hidden">
+        {/* Main 2-Column Dashboard Grid */}
+        <main className="flex-1 min-h-0 p-3 lg:p-4 grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 overflow-hidden">
 
-          {/* Left Column: Architectural Map */}
+          {/* Left Column: Building Egress Map */}
           <div className="lg:col-span-7 h-full flex flex-col min-h-0 overflow-hidden">
             <BuildingMap
               nodes={nodes}
@@ -174,7 +173,7 @@ export default function App() {
             />
           </div>
 
-          {/* Right Column: Live Telemetry & Serial Terminal */}
+          {/* Right Column: Live Telemetry & Control Deck */}
           <div className="lg:col-span-5 h-full flex flex-col min-h-0 overflow-hidden">
             <RightDeck
               nodes={nodes}
@@ -189,20 +188,9 @@ export default function App() {
 
         </main>
 
-        {/* 3. Monospace Footer */}
-        <footer className="bg-[#050505] border-t border-[#27272a] px-4 py-1.5 text-[11px] font-mono text-zinc-500 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-            <span className="text-zinc-400">AERIS System Ready</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-400">Hardware Serial Stream Active</span>
-          </div>
-        </footer>
-
       </div>
 
-      {/* 4. Hardware Guide Modal */}
+      {/* Hardware Specification Modal */}
       <HardwareGuideModal
         isOpen={isHardwareModalOpen}
         onClose={() => setIsHardwareModalOpen(false)}

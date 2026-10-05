@@ -1,16 +1,14 @@
 import React from 'react';
-import { Navigation } from 'lucide-react';
+import { Navigation, CheckCircle2, AlertTriangle, AlertOctagon, HelpCircle } from 'lucide-react';
 
 export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRoute, onSelectNode, selectedNodeId }) {
-  // 4 Node Blueprint Coordinates (Room A, B, C, D)
   const nodePositions = {
-    NODE_A: { x: 185, y: 130, labelX: 80, labelY: 170, roomName: "ROOM A" },
-    NODE_B: { x: 495, y: 130, labelX: 390, labelY: 170, roomName: "ROOM B" },
-    NODE_C: { x: 185, y: 320, labelX: 80, labelY: 360, roomName: "ROOM C" },
-    NODE_D: { x: 495, y: 320, labelX: 390, labelY: 360, roomName: "ROOM D" }
+    NODE_A: { x: 185, y: 125, roomName: "Room A", rectX: 70, rectY: 50, width: 230, height: 170 },
+    NODE_B: { x: 495, y: 125, roomName: "Room B", rectX: 380, rectY: 50, width: 230, height: 170 },
+    NODE_C: { x: 185, y: 315, roomName: "Room C", rectX: 70, rectY: 240, width: 230, height: 170 },
+    NODE_D: { x: 495, y: 315, roomName: "Room D", rectX: 380, rectY: 240, width: 230, height: 170 }
   };
 
-  // Interconnecting paths for 4-node floorplan
   const connections = [
     { from: "NODE_A", to: "NODE_B", id: "edge-a-b" },
     { from: "NODE_A", to: "NODE_C", id: "edge-a-c" },
@@ -38,173 +36,184 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
   const getNodeData = (id) => nodes[id] || { riskInfo: { level: 'SAFE', totalRisk: 0, ledState: 'WHITE' } };
 
   return (
-    <div className="bg-[#0a0a0a] border border-[#27272a] p-3.5 flex flex-col h-full relative overflow-hidden font-sans select-none">
+    <div className="surface-card border border-[#232931] p-4 flex flex-col h-full relative overflow-hidden font-sans select-none">
 
       {/* Map Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-[#27272a]">
-        <div className="flex items-center gap-2">
-          <div className="p-1 bg-[#121212] text-sky-400 border border-[#27272a]">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-[#232931]">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded bg-[#171c22] text-sky-400 border border-[#232931]">
             <Navigation className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
-              $ 4-room-egress-map
+            <h2 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+              Egress map
             </h2>
-            <p className="text-[11px] text-zinc-400">
-              Live Path Status: Neutral (Unchecked), Red (Blocked), Yellow (Caution), Sky Blue (Optimal Route)
+            <p className="text-xs text-zinc-400">
+              Click any room to inspect live telemetry and route options
             </p>
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-3 text-[11px] text-zinc-300">
+        {/* Legend with Icons & Shapes */}
+        <div className="flex items-center gap-4 text-xs text-zinc-300">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-zinc-600" />
-            <span className="text-zinc-500">Unchecked</span>
+            <HelpCircle className="w-3.5 h-3.5 text-zinc-500" />
+            <span className="text-zinc-400">Unchecked</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-sky-400" />
-            <span className="text-sky-400">Safe</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-emerald-400 font-medium">Safe</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-amber-400" />
-            <span className="text-amber-400">Caution</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-amber-400 font-medium">Caution</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-red-400" />
-            <span className="text-red-400">Blocked</span>
+            <AlertOctagon className="w-3.5 h-3.5 text-red-400" />
+            <span className="text-red-400 font-medium">Blocked</span>
           </div>
         </div>
       </div>
 
       {/* Blueprint SVG Canvas */}
-      <div className="relative flex-1 bg-[#050505] border border-[#27272a] flex items-center justify-center overflow-hidden min-h-[360px]">
+      <div className="relative flex-1 bg-[#0b0d10] rounded-lg border border-[#232931] flex items-center justify-center overflow-hidden min-h-[380px]">
 
-        {/* CAD Blueprint Grid */}
-        <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none"
-          style={{
-            backgroundImage: 'linear-gradient(to right, #38bdf8 1px, transparent 1px), linear-gradient(to bottom, #38bdf8 1px, transparent 1px)',
-            backgroundSize: '24px 24px'
-          }}
-        />
-
-        <svg viewBox="0 0 680 460" className="w-full h-full max-h-[500px] select-none">
+        <svg viewBox="0 0 680 440" className="w-full h-full max-h-[500px] select-none">
           <defs>
             <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3.5" result="blur" />
+              <feGaussianBlur stdDeviation="3" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
           </defs>
 
-          {/* Architectural Floorplan Room Layout */}
-          <g className="opacity-70 pointer-events-none">
-            <rect x="50" y="30" width="580" height="400" rx="0" fill="#070707" stroke="#27272a" strokeWidth="2" />
+          {/* LAYER 1: Room Containers (Clickable) */}
+          <g>
+            <rect x="50" y="20" width="580" height="400" rx="8" fill="#0b0d10" stroke="#232931" strokeWidth="2" />
 
-            {/* Room A */}
-            <rect x="70" y="50" width="230" height="170" rx="0" fill="#0c0c0d" stroke="#27272a" strokeWidth="1" />
-            <text x="80" y="72" fill="#71717a" fontSize="10" fontWeight="bold">ROOM A</text>
+            {Object.keys(nodePositions).map((nodeId) => {
+              const pos = nodePositions[nodeId];
+              const isSelected = selectedNodeId === nodeId;
+              const isAccessed = accessedNodes.has(nodeId);
+              const data = getNodeData(nodeId);
+              const level = isAccessed ? data.riskInfo?.level || 'SAFE' : 'UNCHECKED';
 
-            {/* Room B */}
-            <rect x="380" y="50" width="230" height="170" rx="0" fill="#0c0c0d" stroke="#27272a" strokeWidth="1" />
-            <text x="390" y="72" fill="#71717a" fontSize="10" fontWeight="bold">ROOM B</text>
+              const bgFill = isSelected ? "#171c22" : "#11151a";
+              const strokeColor = isSelected ? "#38bdf8" : level === 'CRITICAL' ? '#ef4444' : level === 'WARNING' ? '#f59e0b' : level === 'SAFE' ? '#22c55e' : '#232931';
 
-            {/* Room C */}
-            <rect x="70" y="240" width="230" height="170" rx="0" fill="#0c0c0d" stroke="#27272a" strokeWidth="1" />
-            <text x="80" y="262" fill="#71717a" fontSize="10" fontWeight="bold">ROOM C</text>
-
-            {/* Room D */}
-            <rect x="380" y="240" width="230" height="170" rx="0" fill="#0c0c0d" stroke="#27272a" strokeWidth="1" />
-            <text x="390" y="262" fill="#71717a" fontSize="10" fontWeight="bold">ROOM D</text>
+              return (
+                <g key={nodeId} onClick={() => onSelectNode(nodeId)} className="cursor-pointer">
+                  <rect
+                    x={pos.rectX}
+                    y={pos.rectY}
+                    width={pos.width}
+                    height={pos.height}
+                    rx="6"
+                    fill={bgFill}
+                    stroke={strokeColor}
+                    strokeWidth={isSelected ? "2" : "1"}
+                    className="transition-all duration-150 hover:fill-[#171c22]"
+                  />
+                  <text
+                    x={pos.rectX + 12}
+                    y={pos.rectY + 24}
+                    fill={isSelected ? "#38bdf8" : "#a1a1aa"}
+                    fontSize="13"
+                    fontWeight="600"
+                    fontFamily="Inter, sans-serif"
+                  >
+                    {pos.roomName}
+                  </text>
+                </g>
+              );
+            })}
           </g>
 
-          {/* Connecting Paths Between 4 Nodes */}
-          {connections.map((conn) => {
-            const p1 = nodePositions[conn.from];
-            const p2 = nodePositions[conn.to];
-            if (!p1 || !p2) return null;
+          {/* LAYER 2: Connecting Path Lines */}
+          <g>
+            {connections.map((conn) => {
+              const p1 = nodePositions[conn.from];
+              const p2 = nodePositions[conn.to];
+              if (!p1 || !p2) return null;
 
-            const isRoute = isEdgeInRoute(conn.from, conn.to);
-            const fromData = getNodeData(conn.from);
-            const toData = getNodeData(conn.to);
-            const fromAcc = accessedNodes.has(conn.from);
-            const toAcc = accessedNodes.has(conn.to);
+              const isRoute = isEdgeInRoute(conn.from, conn.to);
+              const fromAcc = accessedNodes.has(conn.from);
+              const toAcc = accessedNodes.has(conn.to);
 
-            let lineColor = "#27272a";
-            if (fromAcc || toAcc) {
-              const fromRisk = fromAcc ? fromData.riskInfo?.totalRisk || 0 : 0;
-              const toRisk = toAcc ? toData.riskInfo?.totalRisk || 0 : 0;
-              const maxRisk = Math.max(fromRisk, toRisk);
+              // Unverified segments (connecting to or through unchecked nodes) rendered dashed gray
+              const isUnverified = !fromAcc || !toAcc;
+              
+              let lineColor = "#3f3f46";
+              if (!isUnverified) {
+                const fromRisk = getNodeData(conn.from).riskInfo?.totalRisk || 0;
+                const toRisk = getNodeData(conn.to).riskInfo?.totalRisk || 0;
+                const maxRisk = Math.max(fromRisk, toRisk);
 
-              if (maxRisk >= 60) {
-                lineColor = "#f87171"; // RED
-              } else if (maxRisk >= 30) {
-                lineColor = "#fbbf24"; // YELLOW
-              } else {
-                lineColor = "#38bdf8"; // SKY BLUE
+                if (maxRisk >= 60) lineColor = "#ef4444";
+                else if (maxRisk >= 30) lineColor = "#f59e0b";
+                else lineColor = "#38bdf8";
               }
-            }
 
-            return (
-              <g key={conn.id}>
-                <line
-                  x1={p1.x}
-                  y1={p1.y}
-                  x2={p2.x}
-                  y2={p2.y}
-                  stroke={lineColor}
-                  strokeWidth={isRoute ? "3.5" : "1.5"}
-                  strokeOpacity={lineColor === "#27272a" ? 0.4 : isRoute ? 1 : 0.4}
-                />
-
-                {isRoute && (fromAcc || toAcc) && lineColor === "#38bdf8" && (
+              return (
+                <g key={conn.id}>
                   <line
                     x1={p1.x}
                     y1={p1.y}
                     x2={p2.x}
                     y2={p2.y}
-                    stroke="#ffffff"
-                    strokeWidth="2"
-                    strokeDasharray="8 6"
-                    className="animate-dash-flow"
-                    filter="url(#routeGlow)"
+                    stroke={isUnverified ? "#52525b" : lineColor}
+                    strokeWidth={isRoute ? "3" : "1.5"}
+                    strokeDasharray={isUnverified ? "6 4" : "none"}
+                    strokeOpacity={isRoute ? 1 : 0.4}
                   />
-                )}
-              </g>
-            );
-          })}
 
-          {/* 4 Interactive Nodes */}
-          {Object.keys(nodePositions).map((nodeId) => {
-            const pos = nodePositions[nodeId];
-            const data = getNodeData(nodeId);
-            const isAccessed = accessedNodes.has(nodeId);
-            const level = isAccessed ? data.riskInfo?.level || 'SAFE' : 'UNCHECKED';
-            const isSelected = selectedNodeId === nodeId;
-            const isInRoute = activePath.includes(nodeId);
+                  {/* Flow animation only for verified active route */}
+                  {isRoute && !isUnverified && lineColor === "#38bdf8" && (
+                    <line
+                      x1={p1.x}
+                      y1={p1.y}
+                      x2={p2.x}
+                      y2={p2.y}
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                      strokeDasharray="6 4"
+                      className="animate-dash-flow"
+                      filter="url(#routeGlow)"
+                    />
+                  )}
+                </g>
+              );
+            })}
+          </g>
 
-            const statusColors = {
-              CRITICAL: { fill: '#f87171', text: 'text-red-400' },
-              WARNING: { fill: '#fbbf24', text: 'text-amber-400' },
-              SAFE: { fill: '#38bdf8', text: 'text-sky-400' },
-              UNCHECKED: { fill: '#52525b', text: 'text-zinc-500' }
-            };
+          {/* LAYER 3: Node SVG Circles & Interactive Handles */}
+          <g>
+            {Object.keys(nodePositions).map((nodeId) => {
+              const pos = nodePositions[nodeId];
+              const data = getNodeData(nodeId);
+              const isAccessed = accessedNodes.has(nodeId);
+              const level = isAccessed ? data.riskInfo?.level || 'SAFE' : 'UNCHECKED';
+              const isSelected = selectedNodeId === nodeId;
+              const isInRoute = activePath.includes(nodeId);
 
-            const colors = statusColors[level] || statusColors.UNCHECKED;
+              const statusFill = {
+                CRITICAL: '#ef4444',
+                WARNING: '#f59e0b',
+                SAFE: '#22c55e',
+                UNCHECKED: '#71717a'
+              }[level];
 
-            return (
-              <g key={nodeId}>
-                {/* Node Circle */}
+              return (
                 <g
+                  key={nodeId}
                   transform={`translate(${pos.x}, ${pos.y})`}
                   onClick={() => onSelectNode(nodeId)}
-                  className="cursor-pointer group"
+                  className="cursor-pointer"
                 >
                   {isSelected && (
                     <circle
-                      r="24"
+                      r="22"
                       fill="none"
-                      stroke={isAccessed ? "#38bdf8" : "#71717a"}
+                      stroke="#38bdf8"
                       strokeWidth="2"
                       strokeDasharray="4 3"
                       className="animate-spin-slow"
@@ -213,77 +222,93 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
 
                   {isInRoute && !isSelected && isAccessed && (
                     <circle
-                      r="20"
+                      r="18"
                       fill="none"
                       stroke="#38bdf8"
                       strokeWidth="1.5"
-                      strokeOpacity="0.8"
                     />
                   )}
 
                   <circle
-                    r="15"
-                    fill="#0d0d0e"
-                    stroke={colors.fill}
+                    r="12"
+                    fill="#11151a"
+                    stroke={statusFill}
                     strokeWidth={isSelected ? 3 : 2}
-                    className="transition-all duration-200 group-hover:scale-110"
                   />
 
                   <circle
-                    r="5"
-                    fill={colors.fill}
+                    r="4"
+                    fill={statusFill}
                   />
                 </g>
+              );
+            })}
+          </g>
 
-                {/* Node Telemetry Text - Neatly placed inside room bounds (No NODE_A/B/C/D header, No % text) */}
+          {/* LAYER 4: Node Labels & Telemetry Text (Top Layer - Never Clipped by Path Lines) */}
+          <g>
+            {Object.keys(nodePositions).map((nodeId) => {
+              const pos = nodePositions[nodeId];
+              const data = getNodeData(nodeId);
+              const isAccessed = accessedNodes.has(nodeId);
+
+              // Rounded whole cm distance
+              const distRounded = data.distance !== undefined ? Math.round(data.distance) : null;
+
+              return (
                 <foreignObject
-                  x={pos.labelX}
-                  y={pos.labelY}
-                  width="210"
-                  height="30"
+                  key={`text-${nodeId}`}
+                  x={pos.rectX + 12}
+                  y={pos.rectY + 115}
+                  width="206"
+                  height="45"
                   onClick={() => onSelectNode(nodeId)}
-                  className="cursor-pointer overflow-hidden pointer-events-auto"
+                  className="cursor-pointer pointer-events-auto"
                 >
-                  <div className="font-mono px-1">
+                  <div className="font-mono text-xs">
                     {isAccessed && data.isSensor ? (
-                      <div className="text-[11px] text-zinc-300 font-medium">
-                        {data.temperature !== undefined ? `${data.temperature}°C` : '--'} | {data.distance !== undefined ? `${data.distance} cm` : '--'}
+                      <div className="flex items-center gap-2 text-zinc-200 font-semibold tabular-nums">
+                        <span className={data.temperature >= 35 ? 'text-red-400' : data.temperature >= 30 ? 'text-amber-400' : 'text-emerald-400'}>
+                          {data.temperature?.toFixed(1)}°C
+                        </span>
+                        <span className="text-zinc-600">|</span>
+                        <span className={distRounded < 10 ? 'text-red-400' : distRounded < 25 ? 'text-amber-400' : 'text-emerald-400'}>
+                          {distRounded} cm
+                        </span>
                       </div>
                     ) : (
-                      <div className="text-[10px] text-zinc-500 italic">
-                        [UNCHECKED]
+                      <div className="text-xs text-zinc-500 font-sans italic">
+                        Unchecked (Click to connect)
                       </div>
                     )}
                   </div>
                 </foreignObject>
-              </g>
-            );
-          })}
+              );
+            })}
+          </g>
         </svg>
 
         {/* Dynamic Route HUD Footer */}
-        <div className="absolute bottom-2.5 left-2.5 right-2.5 bg-[#0a0a0a] border border-[#27272a] px-3 py-2 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <div className="absolute bottom-3 left-3 right-3 bg-[#11151a] border border-[#232931] px-3.5 py-2.5 rounded-lg flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 uppercase text-[10px]">$ optimal-path:</span>
-            <div className="flex items-center gap-1.5 font-bold text-sky-400">
+            <span className="text-zinc-400 font-medium">Optimal path:</span>
+            <div className="flex items-center gap-1.5 font-mono font-semibold text-sky-400 tabular-nums">
               {activePath.map((node, i) => (
                 <React.Fragment key={i}>
-                  <span className={node === targetExitNode ? 'text-sky-400 underline font-extrabold' : 'text-zinc-200'}>
+                  <span className={node === targetExitNode ? 'text-sky-400 underline font-bold' : 'text-zinc-200'}>
                     {node}
                   </span>
-                  {i < activePath.length - 1 && <span className="text-zinc-600 font-bold">→</span>}
+                  {i < activePath.length - 1 && <span className="text-zinc-600">→</span>}
                 </React.Fragment>
               ))}
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-zinc-400 text-[11px]">
-            <div>
-              <span>Exit Gate: </span>
-              <span className={`font-bold ${targetExitNode === 'NODE_D' ? 'text-sky-400' : 'text-amber-400 animate-pulse'}`}>
-                {targetExitNode} {targetExitNode !== 'NODE_D' ? '(Dynamic Exit Reroute)' : ''}
-              </span>
-            </div>
+          <div className="flex items-center gap-3 text-zinc-300 text-xs">
+            <span>Exit gate: </span>
+            <span className={`font-mono font-bold tabular-nums ${targetExitNode === 'NODE_D' ? 'text-sky-400' : 'text-amber-400 animate-pulse'}`}>
+              {targetExitNode} {targetExitNode !== 'NODE_D' ? '(Dynamic Reroute)' : ''}
+            </span>
           </div>
         </div>
 
