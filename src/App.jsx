@@ -1,195 +1,258 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import BuildingMap from './components/BuildingMap';
-import NodeCards from './components/NodeCards';
 import SimulationControls from './components/SimulationControls';
-import AiInspector from './components/AiInspector';
+import RightDeck from './components/RightDeck';
 import HardwareGuideModal from './components/HardwareGuideModal';
-import EventLogs from './components/EventLogs';
+import { 
+  INITIAL_NODES,
+  DEMO_STEPS,
+  buildFullSystemState, 
+  calculateNodeRisk, 
+  computeSafestRouteLocal,
+  evaluateGemma4Local
+} from './utils/engine';
 
 export default function App() {
-  const [systemState, setSystemState] = useState(null);
+  // Initialize with complete local state so UI is never blank or 0 nodes
+  const [systemState, setSystemState] = useState(() => buildFullSystemState(INITIAL_NODES));
   const [selectedNodeId, setSelectedNodeId] = useState('NODE_B');
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'ai'
   const [activeStep, setActiveStep] = useState(1);
   const [isHardwareModalOpen, setIsHardwareModalOpen] = useState(false);
   const [isLivePolling, setIsLivePolling] = useState(true);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch state from server
-  const fetchState = async () => {
+  // Synchronize with Express backend server if available
+  const fetchBackendState = useCallback(async () => {
     try {
       const res = await fetch('/api/state');
       if (res.ok) {
         const data = await res.json();
-        setSystemState(data);
+        if (data && data.nodes && Object.keys(data.nodes).length > 0) {
+          setSystemState(prevState => ({
+            ...prevState,
+            nodes: data.nodes,
+            safestRoute: data.safestRoute || prevState.safestRoute,
+            eventLogs: data.eventLogs && data.eventLogs.length > 0 ? data.eventLogs : prevState.eventLogs
+          }));
+        }
       }
-    } catch (err) {
-      console.warn("API server not reachable, using local fallback calculations", err);
-      // Fallback state if server is loading
-      if (!systemState) {
-        setSystemState({
-          nodes: {
-            START: { id: "START", name: "Main Hall (Start)", temperature: 24, distance: 2.5, isSensor: false, riskInfo: { totalRisk: 0, level: 'SAFE', ledState: 'GREEN' } },
-            NODE_A: { id: "NODE_A", name: "Corridor A (West)", temperature: 24.5, distance: 2.4, isSensor: true, riskInfo: { totalRisk: 0, level: 'SAFE', ledState: 'GREEN' } },
-            NODE_B: { id: "NODE_B", name: "Corridor B (East)", temperature: 25.0, distance: 2.5, isSensor: true, riskInfo: { totalRisk: 0, level: 'SAFE', ledState: 'GREEN' } },
-            NODE_C: { id: "NODE_C", name: "Stairwell C", temperature: 24.0, distance: 2.3, isSensor: true, riskInfo: { totalRisk: 0, level: 'SAFE', ledState: 'GREEN' } },
-            NODE_D: { id: "NODE_D", name: "Junction D", temperature: 25.0, distance: 2.4, isSensor: true, riskInfo: { totalRisk: 0, level: 'SAFE', ledState: 'GREEN' } },
-            EXIT_1: { id: "EXIT_1", name: "North Exit", temperature: 22, distance: 3.0, isSensor: false, riskInfo: { totalRisk: 0, level: 'SAFE', ledState: 'GREEN' } },
-            EXIT_2: { id: "EXIT_2", name: "South Exit", temperature: 22, distance: 3.0, isSensor: false, riskInfo: { totalRisk: 0, level: 'SAFE', ledState: 'GREEN' } }
-          },
-          safestRoute: { path: ["START", "NODE_A", "NODE_C", "EXIT_1"], cost: 18 },
-          eventLogs: [{ id: 1, timestamp: new Date().toISOString(), type: "INIT", message: "System online" }]
-        });
-      }
-    } finally {
-      setLoading(false);
+    } catch {
+      // Backend not running yet; client-side engine handles all calculations seamlessly
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchState();
+    fetchBackendState();
     const interval = setInterval(() => {
       if (isLivePolling) {
-        fetchState();
+        fetchBackendState();
       }
-    }, 1500);
+    }, 2000);
     return () => clearInterval(interval);
-  }, [isLivePolling]);
+  }, [isLivePolling, fetchBackendState]);
 
-  // Handle sensor slider change
+  // Update sensor values (via slider or 1-click trigger)
   const handleUpdateSensor = async (nodeId, temp, distance) => {
+    // 1. Instantly update local state for zero-latency response
+    setSystemState(prev => {
+      const currentNodes = { ...prev.nodes };
+      if (!currentNodes[nodeId]) return prev;
+
+      const updatedNode = {
+        ...currentNodes[nodeId],
+        temperature: parseFloat(temp),
+        distance: parseFloat(distance)
+      };
+
+      const riskInfo = calculateNodeRisk(updatedNode.temperature, updatedNode.distance);
+      updatedNode.riskInfo = riskInfo;
+      updatedNode.aiDecision = evaluateGemma4Local(nodeId, updatedNode.temperature, updatedNode.distance, riskInfo);
+      currentNodes[nodeId] = updatedNode;
+
+      const safestRoute = computeSafestRouteLocal(currentNodes);
+
+      const newLog = {
+        id: Date.now(),
+        timestamp: new Date().toLocaleTimeString(),
+        type: riskInfo.level === 'CRITICAL' ? 'HAZARD_ALERT' : 'TELEMETRY_UPDATE',
+        message: `[${nodeId}] Telemetry: ${updatedNode.temperature}°C, ${updatedNode.distance}m -> Risk Score ${riskInfo.totalRisk}/100 (${riskInfo.level})`
+      };
+
+      return {
+        ...prev,
+        nodes: currentNodes,
+        safestRoute,
+        eventLogs: [newLog, ...(prev.eventLogs || []).slice(0, 40)]
+      };
+    });
+
+    // 2. Broadcast to backend API
     try {
-      const res = await fetch('/api/sensor', {
+      await fetch('/api/sensor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nodeId, temperature: temp, distance })
       });
-      if (res.ok) {
-        fetchState();
-      }
-    } catch (err) {
-      console.error("Failed to update sensor via API", err);
+    } catch {
+      // Local state is already updated
     }
   };
 
-  // Handle 7-Step Hackathon Demo
+  // Execute 7-Step Hackathon Demo
   const handleExecuteStep = async (stepNum) => {
     setActiveStep(stepNum);
+
+    // Apply deterministic scenario state instantly
+    setSystemState(prev => {
+      const currentNodes = { ...prev.nodes };
+      const stepMeta = DEMO_STEPS.find(s => s.step === stepNum);
+
+      switch (stepNum) {
+        case 1: // Normal Baseline
+          if (currentNodes.NODE_A) { currentNodes.NODE_A.temperature = 24.5; currentNodes.NODE_A.distance = 2.4; }
+          if (currentNodes.NODE_B) { currentNodes.NODE_B.temperature = 25.0; currentNodes.NODE_B.distance = 2.5; }
+          if (currentNodes.NODE_C) { currentNodes.NODE_C.temperature = 24.0; currentNodes.NODE_C.distance = 2.3; }
+          if (currentNodes.NODE_D) { currentNodes.NODE_D.temperature = 25.0; currentNodes.NODE_D.distance = 2.4; }
+          break;
+
+        case 2: // Heat Warning on Node B
+          if (currentNodes.NODE_B) { currentNodes.NODE_B.temperature = 42.0; currentNodes.NODE_B.distance = 2.4; }
+          break;
+
+        case 3: // Obstruction + Heat on Node B
+          if (currentNodes.NODE_B) { currentNodes.NODE_B.temperature = 51.0; currentNodes.NODE_B.distance = 0.42; }
+          break;
+
+        case 4: // Gemma 4 AI Reasoning
+        case 5: // Dynamic Rerouting
+        case 6: // Hardware Feedback
+        case 7: // AI Explainability
+          // Maintain hazardous condition at Node B
+          if (currentNodes.NODE_B) { currentNodes.NODE_B.temperature = 51.0; currentNodes.NODE_B.distance = 0.42; }
+          break;
+
+        default:
+          break;
+      }
+
+      // Re-evaluate risk for all nodes
+      Object.keys(currentNodes).forEach(id => {
+        const n = currentNodes[id];
+        const risk = calculateNodeRisk(n.temperature, n.distance);
+        currentNodes[id] = {
+          ...n,
+          riskInfo: risk,
+          aiDecision: evaluateGemma4Local(id, n.temperature, n.distance, risk)
+        };
+      });
+
+      const safestRoute = computeSafestRouteLocal(currentNodes);
+
+      const stepLog = {
+        id: Date.now(),
+        timestamp: new Date().toLocaleTimeString(),
+        type: `DEMO_STEP_${stepNum}`,
+        message: `${stepMeta?.title}: ${stepMeta?.desc || ''}`
+      };
+
+      return {
+        ...prev,
+        nodes: currentNodes,
+        safestRoute,
+        eventLogs: [stepLog, ...(prev.eventLogs || []).slice(0, 40)]
+      };
+    });
+
+    // Notify backend
     try {
-      const res = await fetch('/api/simulate-step', {
+      await fetch('/api/simulate-step', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ step: stepNum })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setSystemState(data.state);
-        if (stepNum === 4 || stepNum === 7) {
-          setActiveTab('ai'); // Switch to Gemma 4 inspector for AI steps
-        }
-      }
-    } catch (err) {
-      console.error("Error running simulation step", err);
+    } catch {
+      // Local state already updated
     }
   };
 
-  // Reset System
+  // Reset entire system to nominal safe state
   const handleReset = async () => {
     setActiveStep(1);
+    setSystemState(buildFullSystemState(INITIAL_NODES));
     try {
       await fetch('/api/reset', { method: 'POST' });
-      fetchState();
-    } catch (err) {
-      console.error("Reset error", err);
+    } catch {
+      // Local state reset
     }
   };
 
-  const nodes = systemState?.nodes || {};
-  const safestRoute = systemState?.safestRoute || { path: [], cost: 0 };
+  const nodes = systemState?.nodes || INITIAL_NODES;
+  const safestRoute = systemState?.safestRoute || { path: ["START", "NODE_B", "NODE_D", "EXIT_2"], cost: 12 };
   const eventLogs = systemState?.eventLogs || [];
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
+    <div className="h-screen w-screen flex flex-col bg-[#070b13] text-slate-100 overflow-hidden font-sans select-none antialiased">
       
-      {/* Header */}
+      {/* 1. Master Command Center Header */}
       <Header
         systemState={systemState}
         onReset={handleReset}
         onOpenHardware={() => setIsHardwareModalOpen(true)}
-        onToggleAiTab={(tab) => setActiveTab(tab)}
-        activeTab={activeTab}
         isLiveUpdating={isLivePolling}
         toggleLiveSimulation={() => setIsLivePolling(!isLivePolling)}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+      {/* 2. Compact 1-Row Hackathon Judge Demo Stepper */}
+      <SimulationControls
+        onExecuteStep={handleExecuteStep}
+        onReset={handleReset}
+        activeStep={activeStep}
+      />
+
+      {/* 3. Main Command Center Split Screen (Zero Scroll Cutoff) */}
+      <main className="flex-1 min-h-0 p-2 sm:p-3 lg:p-4 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-4 overflow-hidden">
         
-        {/* Hackathon 7-Step Demo Controls Header */}
-        <SimulationControls
-          onExecuteStep={handleExecuteStep}
-          onReset={handleReset}
-          activeStep={activeStep}
-        />
+        {/* Left Column (~58% width): Tactical Architectural Blueprint Map */}
+        <div className="lg:col-span-7 h-full flex flex-col min-h-0 overflow-hidden">
+          <BuildingMap
+            nodes={nodes}
+            safestRoute={safestRoute}
+            onSelectNode={(id) => setSelectedNodeId(id)}
+            selectedNodeId={selectedNodeId}
+          />
+        </div>
 
-        {/* View Switcher: Main Dashboard or AI Inspector */}
-        {activeTab === 'dashboard' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            {/* Left 7 Columns: Live Topological Building Map */}
-            <div className="lg:col-span-7 min-h-[480px]">
-              <BuildingMap
-                nodes={nodes}
-                safestRoute={safestRoute}
-                onSelectNode={(id) => setSelectedNodeId(id)}
-                selectedNodeId={selectedNodeId}
-              />
-            </div>
-
-            {/* Right 5 Columns: Node Telemetry Status Cards */}
-            <div className="lg:col-span-5 min-h-[480px]">
-              <NodeCards
-                nodes={nodes}
-                onUpdateSensor={handleUpdateSensor}
-                onSelectNode={(id) => setSelectedNodeId(id)}
-                selectedNodeId={selectedNodeId}
-              />
-            </div>
-
-            {/* Bottom Row: AI Quick View & Event Audit Logs */}
-            <div className="lg:col-span-7">
-              <AiInspector
-                nodes={nodes}
-                selectedNodeId={selectedNodeId}
-                safestRoute={safestRoute}
-              />
-            </div>
-
-            <div className="lg:col-span-5">
-              <EventLogs logs={eventLogs} />
-            </div>
-
-          </div>
-        ) : (
-          /* Full Page AI Reasoning Inspector */
-          <div className="min-h-[600px]">
-            <AiInspector
-              nodes={nodes}
-              selectedNodeId={selectedNodeId}
-              safestRoute={safestRoute}
-            />
-          </div>
-        )}
+        {/* Right Column (~42% width): Multi-Tab Tactical Deck */}
+        <div className="lg:col-span-5 h-full flex flex-col min-h-0 overflow-hidden">
+          <RightDeck
+            nodes={nodes}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={(id) => setSelectedNodeId(id)}
+            onUpdateSensor={handleUpdateSensor}
+            safestRoute={safestRoute}
+            eventLogs={eventLogs}
+          />
+        </div>
 
       </main>
 
-      {/* Footer */}
-      <footer className="glass-panel border-t border-slate-800 py-4 px-6 text-center text-xs text-slate-500">
-        AERIS — AI Emergency Response & Intelligent Routing System | Hackathon Edition | Powered by Gemma 4 & ESP32 Microcontrollers
+      {/* 4. Minimalist Control Room Status Bar */}
+      <footer className="bg-slate-950 border-t border-slate-800/80 px-4 py-1 text-[11px] font-mono text-slate-500 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-slate-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> AERIS ENGINE v1.0
+          </span>
+          <span className="hidden sm:inline text-slate-600">|</span>
+          <span className="hidden sm:inline text-slate-400">Dijkstra Dynamic Safe Path Algorithm</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-purple-400 font-bold">Gemma 4 Structured Reasoning</span>
+          <span className="text-slate-600">|</span>
+          <span className="text-slate-400">ESP32 IoT Nodes</span>
+        </div>
       </footer>
 
-      {/* Hardware Connections Modal */}
+      {/* 5. ESP32 Hardware Guide & Circuit Modal */}
       <HardwareGuideModal
         isOpen={isHardwareModalOpen}
         onClose={() => setIsHardwareModalOpen(false)}
