@@ -42,7 +42,7 @@ export default function RightDeck({
     reason: riskInfo.level === 'CRITICAL' 
       ? 'Thermal radiation combined with passage clearance restriction creates impassable corridor conditions.'
       : 'Sensor parameters are within acceptable building safety thresholds.',
-    model: 'Autonomous Risk Engine',
+    model: 'Gemma 4 (Open-Weight Agent)',
     agenticToolsUsed: [
       { tool: 'get_temperature', args: { node: selectedNode.id }, result: `${selectedNode.temperature || 25}°C` },
       { tool: 'get_distance', args: { node: selectedNode.id }, result: `${selectedNode.distance || 2.4}m` },
@@ -66,7 +66,7 @@ export default function RightDeck({
     let reply = '';
 
     if (qLower.includes('why') || qLower.includes('change') || qLower.includes('reason') || qLower.includes('switch')) {
-      reply = `Route redirected because ${selectedNode.name || 'Node B'} risk score escalated to ${riskInfo.totalRisk}/100 (${riskInfo.level}). Temperature is ${selectedNode.temperature}°C and ultrasonic clearance is ${selectedNode.distance}m. AI engine designated this route as AVOID, shifting graph weight from 999 -> 18 via Corridor A.`;
+      reply = `Route redirected because ${selectedNode.name || 'Node B'} risk score escalated to ${riskInfo.totalRisk}/100 (${riskInfo.level}). Temperature is ${selectedNode.temperature}°C and ultrasonic clearance is ${selectedNode.distance}m. Gemma 4 designated this route as AVOID, shifting graph weight from 999 -> 18 via Corridor A.`;
     } else if (qLower.includes('exit 1') || qLower.includes('north exit')) {
       reply = `North Emergency Exit (EXIT 1) is currently CLEAR and designated as PRIMARY. Stairwell C path leads directly to Exit 1 with minimal traversal cost.`;
     } else if (qLower.includes('exit 2') || qLower.includes('south exit')) {
@@ -74,7 +74,7 @@ export default function RightDeck({
     } else if (qLower.includes('formula') || qLower.includes('math') || qLower.includes('risk')) {
       reply = `AERIS utilizes deterministic risk fusion: Total Risk = 0.6 * TempRisk + 0.4 * ClearanceRisk. For ${selectedNode.id}: 0.6(${riskInfo.tempRisk}) + 0.4(${riskInfo.clearanceRisk}) = ${riskInfo.totalRisk}/100.`;
     } else {
-      reply = `AI Assessment: Sector ${selectedNode.name || selectedNode.id} is rated ${riskInfo.level} (Score ${riskInfo.totalRisk}/100). Recommended Action: ${aiDecision.recommended_action}. Reason: ${aiDecision.reason}`;
+      reply = `Gemma 4 Assessment: Sector ${selectedNode.name || selectedNode.id} is rated ${riskInfo.level} (Score ${riskInfo.totalRisk}/100). Recommended Action: ${aiDecision.recommended_action}. Reason: ${aiDecision.reason}`;
     }
 
     setChatMessages([...newChat, { sender: 'ai', text: reply }]);
@@ -108,7 +108,7 @@ export default function RightDeck({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span>AI Agent</span>
+            <span>Gemma 4 AI Agent</span>
           </button>
 
           <button
@@ -311,7 +311,7 @@ export default function RightDeck({
         </div>
       )}
 
-      {/* Tab 2 Content: Autonomous AI Agent */}
+      {/* Tab 2 Content: Gemma 4 AI Agent */}
       {activeTab === 'ai' && (
         <div className="flex-1 overflow-y-auto space-y-3 pr-1 flex flex-col min-h-[300px]">
           
@@ -346,8 +346,8 @@ export default function RightDeck({
               </button>
             </div>
 
-            <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/80">
-              Autonomous AI Engine
+            <span className="text-[10px] font-mono text-purple-400 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-800/80">
+              Gemma 4 (Open-Weight)
             </span>
           </div>
 
@@ -389,7 +389,7 @@ export default function RightDeck({
                     >
                       {msg.sender === 'ai' && (
                         <div className="font-bold text-purple-400 text-[9px] mb-0.5 flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5" /> AI Engine Reasoning:
+                          <Sparkles className="w-2.5 h-2.5" /> Gemma 4 Reasoning:
                         </div>
                       )}
                       {msg.text}
@@ -408,7 +408,7 @@ export default function RightDeck({
               >
                 <input
                   type="text"
-                  placeholder="Ask AI: 'Why was route diverted?'..."
+                  placeholder="Ask Gemma 4: 'Why was route diverted?'..."
                   value={userQuery}
                   onChange={(e) => setUserQuery(e.target.value)}
                   className="flex-1 bg-slate-950 text-xs text-white px-3 py-1.5 rounded-lg border border-slate-800 focus:outline-none focus:border-purple-500 font-mono"
@@ -448,7 +448,7 @@ export default function RightDeck({
           {aiSubTab === 'tools' && (
             <div className="flex-1 space-y-2 overflow-y-auto">
               <p className="text-[11px] font-mono text-slate-400">
-                Autonomous AI tool invocation trace:
+                Gemma 4 autonomous tool invocation trace:
               </p>
               {(aiDecision.agenticToolsUsed || []).map((t, idx) => (
                 <div key={idx} className="bg-slate-950 p-2 rounded-lg border border-slate-800 flex items-center justify-between text-[11px] font-mono">

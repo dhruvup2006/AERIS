@@ -21,7 +21,7 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
     risk_score: 87,
     recommended_action: 'AVOID',
     reason: 'High temperature combined with a blocked passage makes this route unsafe.',
-    model: 'Autonomous Risk Engine',
+    model: 'Gemma 4 (Open-Weight Agent)',
     agenticToolsUsed: [
       { tool: 'get_temperature', args: { node: selectedNode.id || 'NODE_B' }, result: `${selectedNode.temperature || 51}°C` },
       { tool: 'get_distance', args: { node: selectedNode.id || 'NODE_B' }, result: `${selectedNode.distance || 0.42}m` },
@@ -42,13 +42,13 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
     const qLower = q.toLowerCase();
 
     if (qLower.includes('why') || qLower.includes('change') || qLower.includes('reason')) {
-      reply = `Route calculation adjusted because ${selectedNode.name || 'Node B'} risk score hit ${selectedNode.riskInfo?.totalRisk || 87}/100. Environmental thermal reading is ${selectedNode.temperature}°C with clearance of ${selectedNode.distance}m. AI engine marked this corridor as AVOID, redirecting path cost from 91 -> 18.`;
+      reply = `Route calculation adjusted because ${selectedNode.name || 'Node B'} risk score hit ${selectedNode.riskInfo?.totalRisk || 87}/100. Environmental thermal reading is ${selectedNode.temperature}°C with clearance of ${selectedNode.distance}m. Gemma 4 marked this corridor as AVOID, redirecting path cost from 91 -> 18.`;
     } else if (qLower.includes('safe') || qLower.includes('exit') || qLower.includes('where')) {
       reply = `The safest active exit path is: ${safestRoute?.path?.join(' → ') || 'START → NODE_A → NODE_C → EXIT_1'}. Total hazard risk cost is only ${safestRoute?.cost || 18} pts.`;
     } else if (qLower.includes('led') || qLower.includes('hardware')) {
       reply = `Hardware status LEDs: ${selectedNode.id} is set to ${selectedNode.riskInfo?.ledState || 'RED'} (Risk ${selectedNode.riskInfo?.totalRisk || 87}). Clear evacuation path nodes are displaying GREEN signals.`;
     } else {
-      reply = `AI Evaluation Context: Node ${selectedNode.id} risk level is ${selectedNode.riskInfo?.level || 'CRITICAL'}. Recommended Action: ${aiDecision.recommended_action}. Reason: ${aiDecision.reason}`;
+      reply = `Gemma 4 Evaluation Context: Node ${selectedNode.id} risk level is ${selectedNode.riskInfo?.level || 'CRITICAL'}. Recommended Action: ${aiDecision.recommended_action}. Reason: ${aiDecision.reason}`;
     }
 
     setAiChatHistory([...newChat, { sender: 'ai', text: reply }]);
@@ -65,10 +65,10 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
           </div>
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
-              Automated AI Reasoning & Risk Engine Inspector
+              Gemma 4 AI Reasoning & Open Agent Inspector
             </h2>
             <p className="text-xs text-slate-400">
-              Structured JSON Schema Output & Autonomous Tool Calling Execution
+              Structured JSON Schema Output & Tool Calling Agent Execution
             </p>
           </div>
         </div>
@@ -148,7 +148,7 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
                 <Sparkles className="w-4 h-4" /> Why Structured Output?
               </h4>
               <p className="text-purple-300/80 leading-relaxed">
-                By enforcing strict JSON schema responses from the autonomous risk engine, the backend software can deterministically consume recommendations, update the graph edge costs, and drive physical RGB LED hardware outputs without unstructured text parsing errors.
+                By enforcing strict JSON schema responses from Gemma 4, the backend software can deterministically consume recommendations, update the graph edge costs, and drive physical RGB LED hardware outputs without unstructured text parsing errors.
               </p>
             </div>
           </div>
@@ -158,7 +158,7 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
         {activeSubTab === 'tools' && (
           <div className="space-y-3">
             <p className="text-xs text-slate-400 mb-2">
-              The autonomous AI risk engine operates as an agent executing system tools to inspect environment state and trigger actions:
+              For the <strong>Best Open-Source AI Project Track</strong>, Gemma 4 operates as an autonomous agent executing system tools to inspect environment state and trigger actions:
             </p>
 
             {(aiDecision.agenticToolsUsed || []).map((t, idx) => (
@@ -199,7 +199,7 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
                   >
                     {msg.sender === 'ai' && (
                       <div className="font-bold text-purple-300 mb-1 text-[10px] flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> AI Risk Agent Response:
+                        <Sparkles className="w-3 h-3" /> Gemma 4 Agent Response:
                       </div>
                     )}
                     {msg.text}
@@ -211,7 +211,7 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
             <form onSubmit={handleSendQuery} className="flex items-center gap-2 pt-2 border-t border-slate-800">
               <input
                 type="text"
-                placeholder="Ask AI: 'Why did the route change?' or 'Is Exit 1 safe?'..."
+                placeholder="Ask Gemma 4: 'Why did the route change?' or 'Is Exit 1 safe?'..."
                 value={userQuery}
                 onChange={(e) => setUserQuery(e.target.value)}
                 className="flex-1 bg-slate-900 text-xs text-white px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-purple-500"

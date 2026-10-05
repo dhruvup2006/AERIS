@@ -101,11 +101,11 @@ export const DEMO_STEPS = [
   },
   {
     step: 4,
-    shortTitle: "4. Automated AI",
-    title: "Step 4: Automated AI Reasoning",
+    shortTitle: "4. Gemma 4 AI",
+    title: "Step 4: Gemma 4 AI Reasoning",
     badge: "AI INFERENCE",
-    badgeColor: "text-cyan-400 bg-cyan-950/80 border-cyan-500/50",
-    desc: "Context fed to Autonomous Risk Agent. Strict JSON schema output confirms risk_level 'CRITICAL', recommendation 'AVOID'.",
+    badgeColor: "text-purple-400 bg-purple-950/80 border-purple-500/50",
+    desc: "Context fed to Gemma 4 Open Agent. Strict JSON schema output confirms risk_level 'CRITICAL', recommendation 'AVOID'.",
     judgePitch: "Judges see structured JSON schema output ensuring deterministic machine consumption without hallucinations."
   },
   {
@@ -132,7 +132,7 @@ export const DEMO_STEPS = [
     title: "Step 7: Natural Language Explainability",
     badge: "EXPLAINABILITY",
     badgeColor: "text-indigo-400 bg-indigo-950/80 border-indigo-500/50",
-    desc: "Control room query: 'Why did the route switch?'. AI engine breaks down the thermal + passage obstruction reasoning.",
+    desc: "Control room query: 'Why did the route switch?'. Gemma 4 breaks down the thermal + passage obstruction reasoning.",
     judgePitch: "Emergency responders get transparent, auditable justification instead of a black-box recommendation."
   }
 ];
@@ -164,7 +164,7 @@ export function calculateNodeRisk(temp, dist) {
   };
 }
 
-export function evaluateRiskLocal(nodeId, temp, dist, riskObj) {
+export function evaluateGemma4Local(nodeId, temp, dist, riskObj) {
   const { totalRisk, level } = riskObj;
   let recommended_action = "PROCEED_WITH_CAUTION";
   let reason = "Normal environmental parameters detected.";
@@ -204,7 +204,7 @@ export function evaluateRiskLocal(nodeId, temp, dist, riskObj) {
     recommended_action,
     reason,
     timestamp: new Date().toISOString(),
-    model: "Autonomous Risk Engine",
+    model: "Gemma 4 (Open-Weight Agent)",
     agenticToolsUsed
   };
 }
@@ -307,7 +307,7 @@ export function buildFullSystemState(rawNodes = INITIAL_NODES, existingLogs = []
     processed[id] = {
       ...n,
       riskInfo,
-      aiDecision: evaluateRiskLocal(id, n.temperature, n.distance, riskInfo)
+      aiDecision: evaluateGemma4Local(id, n.temperature, n.distance, riskInfo)
     };
   });
 
