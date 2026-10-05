@@ -1,16 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
-/* AERIS Modern Command Center Design System & Custom CSS Utilities */
+/* AERIS Command Center Design System */
 
 :root {
-  --bg-dark: #090d16;
-  --bg-card: rgba(15, 23, 42, 0.7);
-  --border-card: rgba(255, 255, 255, 0.08);
-  --color-safe: #10b981;
-  --color-warning: #f59e0b;
-  --color-critical: #ef4444;
-  --color-route: #06b6d4;
-  --color-ai: #a855f7;
+  --bg-pitch: #050505;
+  --bg-card: #0a0a0a;
+  --bg-elevated: #121212;
+  --border-terminal: #27272a;
+  --border-accent: rgba(128, 255, 114, 0.25);
+  
+  --color-green-neon: #80ff72;
+  --color-green-accent: #4ade80;
+  --color-safe: #4ade80;
+  --color-warning: #fbbf24;
+  --color-critical: #f87171;
 }
 
 * {
@@ -18,67 +22,68 @@
 }
 
 body {
-  background-color: #090d16;
-  color: #f3f4f6;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: #050505;
+  color: #e4e4e7;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glassmorphism Surface Panels */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+/* Terminal Monospace Panels */
+.terminal-panel {
+  background: #0a0a0a;
+  border: 1px solid #27272a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
 }
 
-.glass-card {
-  background: rgba(30, 41, 59, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  transition: all 0.3s ease;
+.terminal-card {
+  background: #0f0f10;
+  border: 1px solid #27272a;
+  transition: all 0.2s ease;
 }
 
-.glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+.terminal-card:hover {
+  border-color: rgba(128, 255, 114, 0.4);
 }
 
-/* Glowing Highlights */
+/* Glowing Terminal Highlights */
 .glow-safe {
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.3);
 }
 
 .glow-warning {
-  box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.3);
 }
 
 .glow-critical {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+  box-shadow: 0 0 16px rgba(248, 113, 113, 0.5);
   animation: pulse-danger 1.8s infinite alternate;
 }
 
-.glow-route {
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
-}
-
-.glow-ai {
-  box-shadow: 0 0 18px rgba(168, 85, 247, 0.5);
+.glow-terminal {
+  box-shadow: 0 0 15px rgba(128, 255, 114, 0.25);
 }
 
 /* Keyframes */
 @keyframes pulse-danger {
-  0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
-  100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.9); }
+  0% {
+    box-shadow: 0 0 8px rgba(248, 113, 113, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(248, 113, 113, 0.8);
+  }
 }
 
 @keyframes dash-flow {
-  from { stroke-dashoffset: 40; }
-  to { stroke-dashoffset: 0; }
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .animate-dash-flow {
@@ -87,18 +92,30 @@ body {
 }
 
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
+
 .animate-spin-slow {
   animation: spin-slow 12s linear infinite;
   transform-origin: center;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out forwards;
 }
@@ -106,23 +123,27 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* Helper Utilities */
+/* Terminal Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
+
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+  background: #080808;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+  background: #27272a;
+  border-radius: 2px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: #80ff72;
 }

@@ -1,479 +1,436 @@
 import React, { useState } from 'react';
-import { 
-  Thermometer, Activity, Sparkles, Code2, Wrench, MessageSquare, 
-  Send, AlertTriangle, Flame, RefreshCw, Terminal 
-} from 'lucide-react';
+import { Thermometer, Activity, Terminal, Radio, Send, Eye } from 'lucide-react';
 
 export default function RightDeck({
   nodes,
+  accessedNodes = new Set(),
   selectedNodeId,
   onSelectNode,
   onUpdateSensor,
   eventLogs = []
 }) {
-  const [activeTab, setActiveTab] = useState('telemetry'); // 'telemetry' | 'ai' | 'logs'
-  const [aiSubTab, setAiSubTab] = useState('chat'); // 'chat' | 'json' | 'tools'
-  const [userQuery, setUserQuery] = useState('');
-  const [chatMessages, setChatMessages] = useState([
-    {
-      sender: 'user',
-      text: 'Which room should occupants evacuate through?'
-    },
-    {
-      sender: 'ai',
-      text: 'Evacuate through Room C (NODE_C) -> Room D (NODE_D Exit). Room A has high fire heat (51°C) and Room B is blocked by debris (<10cm clearance).'
-    }
-  ]);
+  const [activeTab, setActiveTab] = useState('telemetry'); // 'telemetry' | 'terminal' | 'push'
+  const [pushTemp, setPushTemp] = useState('28.5');
+  const [pushDist, setPushDist] = useState('0.05');
 
   const sensorKeys = ['NODE_A', 'NODE_B', 'NODE_C', 'NODE_D'];
-  const selectedNode = nodes[selectedNodeId] || nodes[sensorKeys[0]] || nodes.NODE_B || {};
-  const riskInfo = selectedNode.riskInfo || { totalRisk: 0, level: 'SAFE', ledState: 'GREEN', tempRisk: 0, clearanceRisk: 0 };
+  const selectedNode = nodes[selectedNodeId] || nodes[sensorKeys[0]] || {};
+  const isSelectedAccessed = accessedNodes.has(selectedNode.id);
+  const riskInfo = isSelectedAccessed
+    ? selectedNode.riskInfo || { totalRisk: 0, level: 'SAFE', ledState: 'WHITE' }
+    : { totalRisk: 0, level: 'UNCHECKED', ledState: 'OFF' };
 
   const ledStyles = {
-    GREEN: 'bg-emerald-500 border-emerald-400',
-    YELLOW: 'bg-amber-500 border-amber-400',
-    RED: 'bg-red-500 border-red-400'
+    OFF: 'bg-zinc-700 border-zinc-600',
+    WHITE: 'bg-white border-zinc-300',
+    YELLOW: 'bg-[#fbbf24] border-[#fbbf24]',
+    RED: 'bg-[#f87171] border-[#f87171]'
   };
 
-  const aiDecision = selectedNode.aiDecision || {
-    risk_level: riskInfo.level,
-    risk_score: riskInfo.totalRisk,
-    recommended_action: riskInfo.level === 'CRITICAL' ? 'AVOID' : riskInfo.level === 'WARNING' ? 'MONITOR' : 'SAFE',
-    reason: riskInfo.level === 'CRITICAL' 
-      ? 'Thermal radiation or physical debris restriction creates impassable room conditions.'
-      : 'Sensor parameters are within acceptable room safety thresholds.',
-    model: 'AERIS AI Engine',
-    agenticToolsUsed: [
-      { tool: 'get_temperature', args: { node: selectedNode.id }, result: `${selectedNode.temperature || 25}°C` },
-      { tool: 'get_distance', args: { node: selectedNode.id }, result: `${selectedNode.distance || 2.4}m` },
-      { tool: 'calculate_risk', args: { temp_risk: riskInfo.tempRisk, clearance_risk: riskInfo.clearanceRisk }, result: `${riskInfo.totalRisk}/100` },
-      { tool: 'set_led', args: { node: selectedNode.id, state: riskInfo.ledState }, result: 'SUCCESS' }
-    ]
-  };
-
-  const handlePresetTrigger = (temp, dist) => {
-    onUpdateSensor(selectedNode.id, temp, dist);
-  };
-
-  const handleSendChat = (textToSend) => {
-    const q = (textToSend || userQuery).trim();
-    if (!q) return;
-
-    const newChat = [...chatMessages, { sender: 'user', text: q }];
-    const qLower = q.toLowerCase();
-    let reply = '';
-
-    if (qLower.includes('why') || qLower.includes('change') || qLower.includes('reason') || qLower.includes('switch')) {
-      reply = `Route redirected because ${selectedNode.name || 'Room B'} risk score escalated to ${riskInfo.totalRisk}/100 (${riskInfo.level}). Temperature is ${selectedNode.temperature}°C and clearance is ${selectedNode.distance}m. AI Agent marked this route RED (Blocked).`;
-    } else if (qLower.includes('exit') || qLower.includes('room d')) {
-      reply = `Room D Exit (NODE_D) is currently designated as PRIMARY SAFE EXIT. Room C path leads directly to Room D Exit with minimal risk cost.`;
-    } else if (qLower.includes('formula') || qLower.includes('math') || qLower.includes('risk')) {
-      reply = `AERIS utilizes deterministic risk fusion: High Heat (>45°C) or Debris (<10cm) = RED Path (CRITICAL). For ${selectedNode.id}: Temp=${selectedNode.temperature}°C, Distance=${selectedNode.distance}m -> Risk Score ${riskInfo.totalRisk}/100 (${riskInfo.level}).`;
-    } else {
-      reply = `AI Assessment: Sector ${selectedNode.name || selectedNode.id} is rated ${riskInfo.level} (Score ${riskInfo.totalRisk}/100). Recommended Action: ${aiDecision.recommended_action}. Reason: ${aiDecision.reason}`;
-    }
-
-    setChatMessages([...newChat, { sender: 'ai', text: reply }]);
-    setUserQuery('');
+  const handlePushSensor = (e) => {
+    e.preventDefault();
+    onUpdateSensor(selectedNode.id, parseFloat(pushTemp), parseFloat(pushDist));
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-col h-full shadow-xl backdrop-blur-md font-mono">
-      
-      {/* Top Deck Tabs Bar */}
-      <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-800">
-        <div className="flex items-center gap-1 bg-slate-950 p-1 border border-slate-800">
+    <div className="bg-[#0a0a0a] border border-[#27272a] p-4 flex flex-col h-full font-sans select-none">
+
+      {/* Top Deck Tabs Bar - Clean typography without boxes or pills */}
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#27272a]">
+        <div className="flex items-center gap-4 text-xs font-bold">
           <button
             onClick={() => setActiveTab('telemetry')}
-            className={`px-3 py-1 text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`pb-1 transition-all flex items-center gap-1.5 ${
               activeTab === 'telemetry'
-                ? 'bg-slate-900 text-cyan-300 border border-cyan-500/50'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'text-[#80ff72] border-b-2 border-[#80ff72]'
+                : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Activity className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Telemetry & Nodes</span>
+            <Activity className="w-3.5 h-3.5" />
+            <span>Live Sensors</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('ai')}
-            className={`px-3 py-1 text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'ai'
-                ? 'bg-slate-900 text-cyan-300 border border-cyan-500/50'
-                : 'text-slate-400 hover:text-slate-200'
+            onClick={() => setActiveTab('terminal')}
+            className={`pb-1 transition-all flex items-center gap-1.5 ${
+              activeTab === 'terminal'
+                ? 'text-[#80ff72] border-b-2 border-[#80ff72]'
+                : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>AI Risk Agent</span>
+            <Terminal className="w-3.5 h-3.5" />
+            <span>Terminal Stream ({eventLogs.length})</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('logs')}
-            className={`px-3 py-1 text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'logs'
-                ? 'bg-slate-800 text-slate-200 border border-slate-700'
-                : 'text-slate-400 hover:text-slate-200'
+            onClick={() => setActiveTab('push')}
+            className={`pb-1 transition-all flex items-center gap-1.5 ${
+              activeTab === 'push'
+                ? 'text-[#80ff72] border-b-2 border-[#80ff72]'
+                : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Terminal className="w-3.5 h-3.5 text-slate-400" />
-            <span>Audit Log</span>
-            <span className="text-[10px] text-slate-400">({eventLogs.length})</span>
+            <Radio className="w-3.5 h-3.5" />
+            <span>Telemetry Input</span>
           </button>
         </div>
 
-        <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-400 bg-slate-950 px-2 py-1 border border-slate-800">
-          <span>Active:</span>
-          <span className="font-bold text-white">{selectedNode.id}</span>
+        <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-zinc-400">
+          <span>Active Node:</span>
+          <span className="font-bold text-[#80ff72]">{selectedNode.id}</span>
+          <span className="text-zinc-600">
+            {isSelectedAccessed ? '(Live)' : '(Unchecked)'}
+          </span>
         </div>
       </div>
 
-      {/* 4 Nodes Quick Selector */}
-      <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 no-scrollbar">
-        <span className="text-[10px] text-slate-500 uppercase shrink-0">Select Node:</span>
+      {/* 4 Nodes Selector Bar - Clean text items without pills or boxes */}
+      <div className="flex items-center gap-4 mb-4 overflow-x-auto pb-1 no-scrollbar text-xs">
+        <span className="text-[10px] text-zinc-500 uppercase shrink-0">$ nodes:</span>
         {sensorKeys.map((id) => {
           const n = nodes[id] || {};
           const isSel = selectedNodeId === id;
-          const nRisk = n.riskInfo?.totalRisk || 0;
-          const nLevel = n.riskInfo?.level || 'SAFE';
+          const isAcc = accessedNodes.has(id);
+          const nLevel = isAcc ? n.riskInfo?.level || 'SAFE' : 'UNCHECKED';
 
-          const textColor = nLevel === 'CRITICAL' ? 'text-red-400' : nLevel === 'WARNING' ? 'text-amber-400' : 'text-emerald-400';
+          const textColor = !isAcc
+            ? 'text-zinc-500'
+            : nLevel === 'CRITICAL'
+            ? 'text-red-400'
+            : nLevel === 'WARNING'
+            ? 'text-amber-400'
+            : 'text-[#80ff72]';
+
+          const dotColor = !isAcc
+            ? 'bg-zinc-600'
+            : nLevel === 'CRITICAL'
+            ? 'bg-red-400'
+            : nLevel === 'WARNING'
+            ? 'bg-amber-400'
+            : 'bg-[#80ff72]';
 
           return (
             <button
               key={id}
               onClick={() => onSelectNode(id)}
-              className={`px-2.5 py-1 text-[11px] font-semibold transition-all border flex items-center gap-1.5 shrink-0 ${
+              className={`flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                 isSel
-                  ? 'bg-slate-800 text-white border-cyan-400'
-                  : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                  ? 'text-white font-bold underline decoration-[#80ff72] underline-offset-4'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${nLevel === 'CRITICAL' ? 'bg-red-400' : nLevel === 'WARNING' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+              <span className={`w-2 h-2 rounded-full ${dotColor} ${isSel ? 'animate-pulse' : ''}`} />
               <span>{id}</span>
-              <span className={textColor}>({nRisk}%)</span>
+              <span className={`text-[11px] ${textColor}`}>
+                {isAcc ? (n.temperature !== undefined ? `${n.temperature}°C` : 'Live') : '(Unchecked)'}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* Tab 1 Content: Telemetry & Controls */}
+      {/* Tab 1: Live Sensors Monitor */}
       {activeTab === 'telemetry' && (
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-          
-          <div className="bg-slate-950 p-3.5 border border-slate-800">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5 mb-3">
+
+          {/* Active Node Detail Card */}
+          <div className="bg-[#050505] p-3.5 border border-[#27272a]">
+            
+            <div className="flex items-center justify-between border-b border-[#27272a] pb-2.5 mb-3">
               <div>
                 <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
                   <span>{selectedNode.name || 'Sensor Node'}</span>
-                  <span className="text-[10px] text-slate-500 font-normal">[{selectedNode.zone || selectedNode.id}]</span>
+                  <span className="text-[10px] text-zinc-500 font-normal">[{selectedNode.id}]</span>
                 </h3>
-                <span className="text-[10px] text-slate-400">Hardware Node ID: {selectedNode.id}</span>
+                <span className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5">
+                  <Radio className={`w-3 h-3 ${isSelectedAccessed ? 'text-[#80ff72] animate-pulse' : 'text-zinc-600'}`} />
+                  <span>Telemetry Stream: <strong className={isSelectedAccessed ? 'text-[#80ff72]' : 'text-zinc-500'}>
+                    {isSelectedAccessed ? 'ACTIVE' : 'UNACCESSED'}
+                  </strong></span>
+                </span>
               </div>
 
-              <div className="flex items-center gap-2 bg-slate-900 px-2.5 py-1 border border-slate-800">
-                <span className="text-[10px] text-slate-400">Physical RGB LED:</span>
-                <div className={`w-3 h-3 rounded-full border ${ledStyles[riskInfo.ledState] || ledStyles.GREEN}`} />
-                <span className="text-[11px] font-bold text-white uppercase">{riskInfo.ledState}</span>
+              <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+                <span>Hardware LED:</span>
+                <div className={`w-2.5 h-2.5 rounded-full border ${ledStyles[riskInfo.ledState] || ledStyles.OFF}`} />
+                <span className="font-bold text-white uppercase">{riskInfo.ledState}</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-              
-              {/* Temp Meter */}
-              <div className="bg-slate-900 p-3 border border-slate-800">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-slate-400 flex items-center gap-1.5">
-                    <Thermometer className="w-4 h-4 text-rose-400" /> Temperature:
-                  </span>
-                  <span className="text-sm font-bold text-rose-300">{selectedNode.temperature}°C</span>
+            {/* If node is NOT accessed yet */}
+            {!isSelectedAccessed ? (
+              <div className="bg-[#0c0c0d] p-4 border border-[#27272a] text-center my-2 space-y-3">
+                <div className="flex justify-center text-zinc-600">
+                  <Eye className="w-6 h-6 animate-pulse text-zinc-500" />
                 </div>
-
-                <div className="w-full bg-slate-950 h-2 border border-slate-800 mb-1.5">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      selectedNode.temperature >= 45 ? 'bg-red-500' : selectedNode.temperature >= 35 ? 'bg-amber-400' : 'bg-emerald-400'
-                    }`}
-                    style={{ width: `${Math.min(100, Math.max(0, ((selectedNode.temperature - 15) / 60) * 100))}%` }}
-                  />
+                <div className="text-xs text-zinc-300 font-bold uppercase">
+                  Node [{selectedNode.id}] Status Unchecked
                 </div>
-
-                <input
-                  type="range"
-                  min="15"
-                  max="75"
-                  step="0.5"
-                  value={selectedNode.temperature || 24}
-                  onChange={(e) => onUpdateSensor(selectedNode.id, parseFloat(e.target.value), selectedNode.distance)}
-                  className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-rose-500"
-                />
-                <div className="flex justify-between text-[9px] text-slate-500 mt-1">
-                  <span>&lt;35°C Safe</span>
-                  <span>35-45°C Warn</span>
-                  <span>&gt;45°C Fire (RED)</span>
-                </div>
-              </div>
-
-              {/* Clearance Meter */}
-              <div className="bg-slate-900 p-3 border border-slate-800">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-slate-400 flex items-center gap-1.5">
-                    <Activity className="w-4 h-4 text-cyan-400" /> Ultrasonic Clearance:
-                  </span>
-                  <span className="text-sm font-bold text-cyan-300">
-                    {selectedNode.distance < 1 ? `${(selectedNode.distance * 100).toFixed(0)} cm` : `${selectedNode.distance} m`}
-                  </span>
-                </div>
-
-                <div className="w-full bg-slate-950 h-2 border border-slate-800 mb-1.5">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      selectedNode.distance < 0.10 ? 'bg-red-500' : selectedNode.distance < 0.25 ? 'bg-amber-400' : 'bg-cyan-400'
-                    }`}
-                    style={{ width: `${Math.min(100, Math.max(0, (selectedNode.distance / 3.0) * 100))}%` }}
-                  />
-                </div>
-
-                <input
-                  type="range"
-                  min="0.05"
-                  max="3.0"
-                  step="0.01"
-                  value={selectedNode.distance || 2.4}
-                  onChange={(e) => onUpdateSensor(selectedNode.id, selectedNode.temperature, parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-cyan-500"
-                />
-                <div className="flex justify-between text-[9px] text-slate-500 mt-1">
-                  <span>&lt;10cm Debris (RED)</span>
-                  <span>25cm Partial</span>
-                  <span>&gt;1m Clear (GREEN)</span>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Scenario Triggers */}
-            <div className="bg-slate-900 p-2.5 border border-slate-800">
-              <span className="text-[10px] text-slate-400 block mb-1.5 uppercase font-bold">
-                1-Click Hardware Simulation Triggers:
-              </span>
-              <div className="grid grid-cols-3 gap-2">
+                <p className="text-[11px] text-zinc-500 max-w-sm mx-auto">
+                  Condition is hidden until node is accessed. Click below to connect live telemetry stream and evaluate safety metrics.
+                </p>
                 <button
-                  onClick={() => handlePresetTrigger(51.0, selectedNode.distance)}
-                  className="px-2 py-1.5 bg-slate-950 border border-red-500/40 hover:bg-red-950 text-red-300 text-[11px] font-medium flex items-center justify-center gap-1 transition-all"
+                  onClick={() => onSelectNode(selectedNode.id)}
+                  className="px-4 py-1.5 bg-[#121212] hover:bg-[#1a1a1c] text-[#80ff72] border border-[#80ff72]/40 text-xs font-bold transition-all cursor-pointer"
                 >
-                  <Flame className="w-3.5 h-3.5 text-red-400" />
-                  <span>Simulate Fire (&gt;45°C)</span>
-                </button>
-
-                <button
-                  onClick={() => handlePresetTrigger(selectedNode.temperature, 0.08)}
-                  className="px-2 py-1.5 bg-slate-950 border border-amber-500/40 hover:bg-amber-950 text-amber-300 text-[11px] font-medium flex items-center justify-center gap-1 transition-all"
-                >
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Block Debris (&lt;10cm)</span>
-                </button>
-
-                <button
-                  onClick={() => handlePresetTrigger(24.0, 2.5)}
-                  className="px-2 py-1.5 bg-slate-950 border border-emerald-500/40 hover:bg-emerald-950 text-emerald-300 text-[11px] font-medium flex items-center justify-center gap-1 transition-all"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Reset Room</span>
+                  Access Node [{selectedNode.id}] Telemetry
                 </button>
               </div>
-            </div>
+            ) : (
+              /* Real Sensor Telemetry Displays for Accessed Node */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
 
-            <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-              <span>Status: <strong className={riskInfo.level === 'CRITICAL' ? 'text-red-400' : riskInfo.level === 'WARNING' ? 'text-amber-400' : 'text-emerald-400'}>{riskInfo.level}</strong></span>
-              <span>LED: <strong className="text-white">{riskInfo.ledState}</strong></span>
-              <span className="text-cyan-400 font-bold">Total Risk Score = {riskInfo.totalRisk}/100</span>
-            </div>
+                {/* Temperature Display */}
+                <div className="bg-[#0c0c0d] p-3 border border-[#27272a]">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-zinc-400 flex items-center gap-1.5">
+                      <Thermometer className="w-4 h-4 text-red-400" /> Live Temp:
+                    </span>
+                    <span className="text-base font-bold text-red-300 font-mono">
+                      {selectedNode.temperature !== undefined ? `${selectedNode.temperature}°C` : '--°C'}
+                    </span>
+                  </div>
 
-          </div>
-
-        </div>
-      )}
-
-      {/* Tab 2 Content: AI Agent */}
-      {activeTab === 'ai' && (
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1 flex flex-col min-h-[300px]">
-          
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center gap-1 bg-slate-950 p-0.5 border border-slate-800">
-              <button
-                onClick={() => setAiSubTab('chat')}
-                className={`px-2.5 py-1 text-[11px] font-medium transition-all ${
-                  aiSubTab === 'chat' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <MessageSquare className="w-3 h-3 inline mr-1" /> Explainability Chat
-              </button>
-
-              <button
-                onClick={() => setAiSubTab('json')}
-                className={`px-2.5 py-1 text-[11px] font-medium transition-all ${
-                  aiSubTab === 'json' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Code2 className="w-3 h-3 inline mr-1" /> Strict JSON Schema
-              </button>
-
-              <button
-                onClick={() => setAiSubTab('tools')}
-                className={`px-2.5 py-1 text-[11px] font-medium transition-all ${
-                  aiSubTab === 'tools' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Wrench className="w-3 h-3 inline mr-1" /> Agent Tools Trace
-              </button>
-            </div>
-
-            <span className="text-[10px] text-cyan-400 border border-slate-800 px-2 py-0.5">
-              AERIS AI Engine
-            </span>
-          </div>
-
-          {/* Subtab 1: Chat */}
-          {aiSubTab === 'chat' && (
-            <div className="flex-1 flex flex-col space-y-2.5">
-              
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] text-slate-500">Ask:</span>
-                {[
-                  "Why did route change?",
-                  "Is Room D Exit safe?",
-                  "Explain risk formula"
-                ].map((prompt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSendChat(prompt)}
-                    className="px-2 py-0.5 text-[10px] bg-slate-950 text-cyan-300 border border-slate-800 hover:border-slate-700 transition-all"
-                  >
-                    "{prompt}"
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex-1 bg-slate-950 p-3 border border-slate-800 overflow-y-auto space-y-2 min-h-[160px] max-h-[220px]">
-                {chatMessages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-                  >
+                  <div className="w-full bg-[#050505] h-2 border border-zinc-800 mb-2">
                     <div
-                      className={`max-w-[90%] p-2 text-[11px] leading-relaxed border ${
-                        msg.sender === 'user'
-                          ? 'bg-slate-900 text-cyan-200 border-slate-700'
-                          : 'bg-slate-900 text-slate-200 border-slate-800'
+                      className={`h-full transition-all duration-300 ${
+                        selectedNode.temperature >= 35 ? 'bg-red-500' : selectedNode.temperature >= 30 ? 'bg-amber-400' : 'bg-[#80ff72]'
                       }`}
-                    >
-                      {msg.sender === 'ai' && (
-                        <div className="font-bold text-cyan-400 text-[9px] mb-0.5 flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5" /> AI Reasoning:
-                        </div>
+                      style={{ width: `${Math.min(100, Math.max(0, (((selectedNode.temperature || 22) - 15) / 35) * 100))}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-between text-[9px] text-zinc-500">
+                    <span>Thresholds:</span>
+                    <span>&gt;=35°C (RED)</span>
+                    <span>30 to 35°C (WARN)</span>
+                  </div>
+                </div>
+
+                {/* Distance / Clearance Display */}
+                <div className="bg-[#0c0c0d] p-3 border border-[#27272a]">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-zinc-400 flex items-center gap-1.5">
+                      <Activity className="w-4 h-4 text-[#80ff72]" /> Live Distance:
+                    </span>
+                    <span className="text-base font-bold text-[#80ff72] font-mono">
+                      {selectedNode.distance !== undefined ? `${selectedNode.distance} cm` : '-- cm'}
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-[#050505] h-2 border border-zinc-800 mb-2">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        selectedNode.distance < 10 ? 'bg-red-500' : selectedNode.distance < 25 ? 'bg-amber-400' : 'bg-[#80ff72]'
+                      }`}
+                      style={{ width: `${Math.min(100, Math.max(0, ((selectedNode.distance || 250) / 300) * 100))}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-between text-[9px] text-zinc-500">
+                    <span>Clearance:</span>
+                    <span>&lt;10cm (RED)</span>
+                    <span>&gt;=25cm (SAFE)</span>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* Node Telemetry Status */}
+            {isSelectedAccessed && (
+              <div className="mt-3 pt-2.5 border-t border-zinc-800 flex items-center justify-between text-[11px] text-zinc-400">
+                <span>Risk Status: <strong className={riskInfo.level === 'CRITICAL' ? 'text-red-400' : riskInfo.level === 'WARNING' ? 'text-amber-400' : 'text-[#80ff72]'}>[{riskInfo.level}]</strong></span>
+                <span>Updated: <strong className="text-zinc-300">{selectedNode.lastUpdated ? new Date(selectedNode.lastUpdated).toLocaleTimeString() : 'Live'}</strong></span>
+                <span className="text-[#80ff72] font-bold">Risk Score = {riskInfo.totalRisk}/100</span>
+              </div>
+            )}
+
+          </div>
+
+          {/* AI Calculated Risk Score & Evaluation Card */}
+          {isSelectedAccessed && (
+            <div className="bg-[#050505] p-3.5 border border-[#27272a] space-y-2">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#80ff72] animate-pulse" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">AI Risk Engine Analysis</span>
+                </div>
+                <span className={`text-xs font-bold px-2 py-0.5 ${
+                  riskInfo.level === 'CRITICAL' ? 'text-red-400 bg-red-950/40 border border-red-800' :
+                  riskInfo.level === 'WARNING' ? 'text-amber-400 bg-amber-950/40 border border-amber-800' :
+                  'text-[#80ff72] bg-[#80ff72]/10 border border-[#80ff72]/40'
+                }`}>
+                  AI Risk Score: {riskInfo.totalRisk}/100 [{riskInfo.level}]
+                </span>
+              </div>
+
+              <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">
+                {selectedNode.aiDecision?.reason || `Node ${selectedNode.id} telemetry evaluated. Temperature ${selectedNode.temperature}°C & clearance ${selectedNode.distance}cm. Safety state: ${riskInfo.level}.`}
+              </p>
+
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1 border-t border-zinc-900 font-mono">
+                <span>Model: AERIS Risk Agent</span>
+                <span>Recommendation: <strong className={riskInfo.level === 'CRITICAL' ? 'text-red-400' : riskInfo.level === 'WARNING' ? 'text-amber-400' : 'text-[#80ff72]'}>
+                  {selectedNode.aiDecision?.recommended_action || 'SAFE'}
+                </strong></span>
+              </div>
+            </div>
+          )}
+
+          {/* All 4 Nodes Overview Table */}
+          <div className="bg-[#050505] p-3 border border-[#27272a]">
+            <h4 className="text-xs font-bold text-white uppercase mb-2">All Hardware Sensor Nodes</h4>
+            <div className="space-y-1.5">
+              {sensorKeys.map((id) => {
+                const n = nodes[id] || {};
+                const isAcc = accessedNodes.has(id);
+                const r = isAcc ? n.riskInfo || {} : { level: 'UNCHECKED' };
+                const isSel = selectedNodeId === id;
+
+                const statusDot = !isAcc
+                  ? 'bg-zinc-600'
+                  : r.level === 'CRITICAL'
+                  ? 'bg-red-400'
+                  : r.level === 'WARNING'
+                  ? 'bg-amber-400'
+                  : 'bg-[#80ff72]';
+
+                const statusText = !isAcc
+                  ? 'text-zinc-500 font-normal'
+                  : r.level === 'CRITICAL'
+                  ? 'text-red-400 font-bold'
+                  : r.level === 'WARNING'
+                  ? 'text-amber-400 font-bold'
+                  : 'text-[#80ff72] font-bold';
+
+                return (
+                  <div
+                    key={id}
+                    onClick={() => onSelectNode(id)}
+                    className={`p-2 border flex items-center justify-between text-xs cursor-pointer transition-all ${
+                      isSel ? 'border-[#80ff72] bg-[#121212]' : 'border-zinc-800 bg-[#0c0c0d] hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${statusDot}`} />
+                      <span className="font-bold text-white">{id}</span>
+                      <span className="text-zinc-400 text-[11px]">({n.name})</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 font-mono text-[11px]">
+                      {isAcc ? (
+                        <>
+                          <span className="text-red-300">{n.temperature}°C</span>
+                          <span className="text-zinc-700">|</span>
+                          <span className="text-[#80ff72]">
+                            {n.distance} cm
+                          </span>
+                          <span className="text-zinc-700">|</span>
+                          <span className={statusText}>{r.level}</span>
+                        </>
+                      ) : (
+                        <span className="text-zinc-500 italic">Unchecked</span>
                       )}
-                      {msg.text}
                     </div>
                   </div>
-                ))}
-              </div>
-
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendChat();
-                }}
-                className="flex items-center gap-1.5 pt-1"
-              >
-                <input
-                  type="text"
-                  placeholder="Ask AI: 'Why was route diverted?'..."
-                  value={userQuery}
-                  onChange={(e) => setUserQuery(e.target.value)}
-                  className="flex-1 bg-slate-950 text-xs text-white px-3 py-1.5 border border-slate-800 focus:outline-none focus:border-cyan-500"
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-bold flex items-center gap-1 transition-all"
-                >
-                  <Send className="w-3 h-3" />
-                  <span>Ask</span>
-                </button>
-              </form>
-
+                );
+              })}
             </div>
-          )}
-
-          {/* Subtab 2: JSON */}
-          {aiSubTab === 'json' && (
-            <div className="flex-1 bg-slate-950 p-3 border border-slate-800 text-[11px] text-cyan-300 overflow-x-auto relative">
-              <span className="absolute top-2 right-3 text-[9px] text-slate-500 uppercase">
-                application/json
-              </span>
-              <pre>{JSON.stringify({
-                nodeId: selectedNode.id,
-                temperature: selectedNode.temperature,
-                obstacle_distance: selectedNode.distance,
-                risk_level: riskInfo.level,
-                risk_score: riskInfo.totalRisk,
-                recommended_action: aiDecision.recommended_action,
-                reason: aiDecision.reason,
-                timestamp: aiDecision.timestamp || new Date().toISOString()
-              }, null, 2)}</pre>
-            </div>
-          )}
-
-          {/* Subtab 3: Tools */}
-          {aiSubTab === 'tools' && (
-            <div className="flex-1 space-y-2 overflow-y-auto">
-              <p className="text-[11px] text-slate-400">
-                AI autonomous tool invocation trace:
-              </p>
-              {(aiDecision.agenticToolsUsed || []).map((t, idx) => (
-                <div key={idx} className="bg-slate-950 p-2 border border-slate-800 flex items-center justify-between text-[11px]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-4 h-4 bg-slate-900 text-cyan-400 flex items-center justify-center font-bold text-[9px] border border-slate-800">
-                      {idx + 1}
-                    </span>
-                    <span className="text-cyan-300 font-bold">{t.tool}</span>
-                    <span className="text-slate-500 text-[10px]">({JSON.stringify(t.args)})</span>
-                  </div>
-                  <span className="text-emerald-400 font-bold bg-slate-900 px-1.5 py-0.5 border border-slate-800 text-[10px]">
-                    {t.result}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
 
         </div>
       )}
 
-      {/* Tab 3 Content: Audit Log */}
-      {activeTab === 'logs' && (
-        <div className="flex-1 bg-slate-950 p-3 border border-slate-800 overflow-y-auto space-y-2 text-[11px]">
+      {/* Tab 2: Live Terminal Log */}
+      {activeTab === 'terminal' && (
+        <div className="flex-1 bg-[#050505] p-3 border border-[#27272a] overflow-y-auto space-y-2 text-[11px] font-mono">
+          <div className="text-[#80ff72] pb-1 border-b border-zinc-800 text-[10px] flex items-center justify-between">
+            <span>$ serial-telemetry-stream --listen</span>
+            <span>Real-time Hardware Log Feed</span>
+          </div>
+
           {eventLogs.length > 0 ? (
             eventLogs.map((log) => (
-              <div key={log.id} className="pb-1.5 border-b border-slate-900 last:border-0 flex items-start gap-2">
-                <span className="text-slate-500 text-[10px] shrink-0">{log.timestamp?.slice(11, 19) || '12:00:00'}</span>
-                <span className={`px-1 py-0.2 text-[9px] shrink-0 border ${
-                  log.type?.includes('HAZARD') || log.type?.includes('CRITICAL')
+              <div key={log.id} className="pb-1.5 border-b border-zinc-900 last:border-0 flex items-start gap-2">
+                <span className="text-zinc-500 text-[10px] shrink-0">{log.timestamp?.slice(11, 19) || '12:00:00'}</span>
+                <span className={`px-1 py-0.2 text-[9px] shrink-0 border ${log.type?.includes('HAZARD') || log.type?.includes('CRITICAL')
                     ? 'text-red-400 border-red-800'
                     : log.type?.includes('WARN')
-                    ? 'text-amber-400 border-amber-800'
-                    : 'text-cyan-400 border-cyan-800'
-                }`}>
-                  {log.type || 'LOG'}
+                      ? 'text-amber-400 border-amber-800'
+                      : 'text-[#80ff72] border-[#80ff72]/40'
+                  }`}>
+                  {log.type || 'TELEMETRY'}
                 </span>
-                <span className="text-slate-300 leading-tight">{log.message}</span>
+                <span className="text-zinc-300 leading-tight">{log.message}</span>
               </div>
             ))
           ) : (
-            <div className="text-slate-500 text-center py-6">No incident logs recorded yet.</div>
+            <div className="text-zinc-500 text-center py-6">Listening for live serial telemetry logs...</div>
           )}
+        </div>
+      )}
+
+      {/* Tab 3: Direct Telemetry Input */}
+      {activeTab === 'push' && (
+        <div className="flex-1 bg-[#050505] p-3.5 border border-[#27272a] overflow-y-auto space-y-3 font-mono">
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase flex items-center gap-1.5 mb-1">
+              <Radio className="w-4 h-4 text-[#80ff72]" /> Push Live Telemetry to Node [{selectedNode.id}]
+            </h4>
+            <p className="text-[11px] text-zinc-400">
+              Sends HTTP POST payload directly to Express endpoint <code className="text-[#80ff72]">/api/sensor</code>.
+            </p>
+          </div>
+
+          <form onSubmit={handlePushSensor} className="space-y-3 bg-[#0c0c0d] p-3 border border-zinc-800">
+            <div>
+              <label className="text-[11px] text-zinc-400 block mb-1">Target Node:</label>
+              <div className="text-xs font-bold text-[#80ff72] bg-[#050505] p-2 border border-zinc-800">
+                {selectedNode.id} / {selectedNode.name}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] text-zinc-400 block mb-1">Temperature (°C):</label>
+              <input
+                type="number"
+                step="0.1"
+                value={pushTemp}
+                onChange={(e) => setPushTemp(e.target.value)}
+                className="w-full bg-[#050505] text-xs text-white p-2 border border-zinc-800 focus:outline-none focus:border-[#80ff72]"
+                placeholder="e.g. 28.5"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] text-zinc-400 block mb-1">Distance (cm):</label>
+              <input
+                type="number"
+                step="0.1"
+                value={pushDist}
+                onChange={(e) => setPushDist(e.target.value)}
+                className="w-full bg-[#050505] text-xs text-white p-2 border border-zinc-800 focus:outline-none focus:border-[#80ff72]"
+                placeholder="e.g. 8 for 8cm debris obstruction"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2 bg-[#121212] hover:bg-[#1c1c1e] text-[#80ff72] border border-[#80ff72]/50 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>POST Sensor Telemetry</span>
+            </button>
+          </form>
         </div>
       )}
 
     </div>
   );
 }
+
+
+
+
+

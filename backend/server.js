@@ -18,7 +18,7 @@ let nodesState = {
     id: "NODE_A",
     name: "Room A (West)",
     temperature: 22.0,
-    distance: 2.4,
+    distance: 250.0,
     latitude: 12.9718,
     longitude: 77.5943,
     lastUpdated: new Date().toISOString(),
@@ -28,7 +28,7 @@ let nodesState = {
     id: "NODE_B",
     name: "Room B (North)",
     temperature: 22.0,
-    distance: 2.5,
+    distance: 250.0,
     latitude: 12.9719,
     longitude: 77.5949,
     lastUpdated: new Date().toISOString(),
@@ -38,7 +38,7 @@ let nodesState = {
     id: "NODE_C",
     name: "Room C (East)",
     temperature: 22.0,
-    distance: 2.3,
+    distance: 250.0,
     latitude: 12.9722,
     longitude: 77.5941,
     lastUpdated: new Date().toISOString(),
@@ -48,7 +48,7 @@ let nodesState = {
     id: "NODE_D",
     name: "Room D (South Exit)",
     temperature: 22.0,
-    distance: 3.0,
+    distance: 300.0,
     latitude: 12.9726,
     longitude: 77.5942,
     lastUpdated: new Date().toISOString(),
@@ -67,12 +67,12 @@ const baseGraphEdges = [
 
 function calculateNodeRisk(temp, dist) {
   // Quantitative User Rules:
-  // 1. Temp > 27°C OR Distance < 10cm (0.10m) -> RED / Blocked / Red LED Blinks
-  // 2. Temp between 25°C and 27°C OR Distance < 25cm -> YELLOW / Restricted / Yellow LED Blinks
-  // 3. Temp < 25°C AND Distance >= 25cm -> WHITE-GREEN / Optimal / White LED Blinks
+  // 1. Temp >= 35°C OR Distance < 10cm -> RED / Blocked / Red LED Blinks (CRITICAL)
+  // 2. Temp 30°C-35°C OR Distance 10cm-25cm -> YELLOW / Restricted / Yellow LED Blinks (WARNING)
+  // 3. Temp < 30°C AND Distance >= 25cm -> WHITE-GREEN / Optimal / White LED Blinks (SAFE)
 
-  const isHighHeat = temp > 27.0;
-  const isDebrisBlocked = dist < 0.10; // < 10cm
+  const isHighHeat = temp >= 35.0;
+  const isDebrisBlocked = dist < 10.0; // < 10cm is CRITICAL
 
   if (isHighHeat || isDebrisBlocked) {
     return {
@@ -86,8 +86,8 @@ function calculateNodeRisk(temp, dist) {
     };
   }
 
-  const isMediumHeat = temp >= 25.0 && temp <= 27.0;
-  const isPartialObstacle = dist >= 0.10 && dist < 0.25;
+  const isMediumHeat = temp >= 30.0 && temp < 35.0;
+  const isPartialObstacle = dist >= 10.0 && dist < 25.0; // 10cm - 25cm is WARNING
 
   if (isMediumHeat || isPartialObstacle) {
     return {
@@ -104,7 +104,7 @@ function calculateNodeRisk(temp, dist) {
   return {
     tempRisk: 0,
     clearanceRisk: 0,
-    totalRisk: 0,
+    totalRisk: 5,
     level: "SAFE",
     ledState: "WHITE",
     pathState: "SAFE",
@@ -118,7 +118,7 @@ let eventLogs = [
     id: 1,
     timestamp: new Date().toISOString(),
     type: "SYSTEM_INIT",
-    message: "AERIS Backend running with temp rules (>27°C Red, 25-27°C Yellow, <25°C White) & <10cm obstacle rules."
+    message: "AERIS Backend active. Temp rules (>=35°C Red, 30-35°C Yellow, <30°C White) & Distance rules (<10cm Red, 10-25cm Yellow, >=25cm White)."
   }
 ];
 
@@ -130,24 +130,24 @@ function evaluateAIAgent(nodeId, temp, dist, riskObj) {
 
   if (level === "CRITICAL") {
     recommended_action = "AVOID";
-    if (temp > 27.0 && dist < 0.10) {
-      reason = `Temperature >27°C (${temp}°C) and debris <10cm (${(dist*100).toFixed(0)}cm) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
-    } else if (temp > 27.0) {
-      reason = `Temperature exceeds 27°C threshold (${temp}°C) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
+    if (temp >= 35.0 && dist < 10.0) {
+      reason = `Temperature >=35°C (${temp}°C) and debris <10cm (${dist.toFixed(0)}cm) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
+    } else if (temp >= 35.0) {
+      reason = `High heat >=35°C (${temp}°C) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
     } else {
-      reason = `Debris obstacle below 10cm limit (${(dist*100).toFixed(0)}cm) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
+      reason = `Debris obstacle below 10cm limit (${dist.toFixed(0)}cm) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
     }
   } else if (level === "WARNING") {
     recommended_action = "MONITOR";
-    reason = `Temperature between 25°C and 27°C (${temp}°C) at ${nodeId}. Path RESTRICTED (YELLOW). Yellow LED Blinking.`;
+    reason = `Temperature 30-35°C (${temp}°C) or debris 10-25cm (${dist.toFixed(0)}cm) at ${nodeId}. Path RESTRICTED (YELLOW). Yellow LED Blinking.`;
   } else {
     recommended_action = "SAFE";
-    reason = `Temperature <25°C (${temp}°C) and clear clearance (${dist}m) at ${nodeId}. Path OPTIMAL (GREEN). White LED Blinking.`;
+    reason = `Temperature <30°C (${temp}°C) and clear clearance (${dist.toFixed(0)}cm) at ${nodeId}. Path OPTIMAL (GREEN). White LED Blinking.`;
   }
 
   const agenticToolsUsed = [
     { tool: "get_temperature", args: { node: nodeId }, result: `${temp}°C` },
-    { tool: "get_distance", args: { node: nodeId }, result: `${dist}m` },
+    { tool: "get_distance", args: { node: nodeId }, result: `${dist}cm` },
     { tool: "calculate_risk", args: { temp, distance: dist }, result: `${pathState} (${level})` },
     { tool: "set_led", args: { node: nodeId, state: riskObj.ledState }, result: "SUCCESS" }
   ];
@@ -245,7 +245,25 @@ function computeSafestRoute() {
   };
 }
 
+let activeNodeId = "NODE_B";
+
 // API Routes
+app.post('/api/active-node', (req, res) => {
+  const { nodeId } = req.body;
+  let targetId = nodeId;
+  if (targetId === "A") targetId = "NODE_A";
+  else if (targetId === "B") targetId = "NODE_B";
+  else if (targetId === "C") targetId = "NODE_C";
+  else if (targetId === "D") targetId = "NODE_D";
+
+  if (targetId && nodesState[targetId]) {
+    activeNodeId = targetId;
+    console.log(`[AERIS Backend] Active monitoring node set to: ${activeNodeId}`);
+    return res.json({ success: true, activeNodeId });
+  }
+  res.status(400).json({ error: "Invalid nodeId" });
+});
+
 app.get('/api/state', (req, res) => {
   const processedNodes = {};
   Object.keys(nodesState).forEach(id => {
@@ -264,40 +282,51 @@ app.get('/api/state', (req, res) => {
     nodes: processedNodes,
     edges: baseGraphEdges,
     safestRoute,
+    activeNodeId,
     eventLogs: eventLogs.slice(0, 30),
     timestamp: new Date().toISOString()
   });
 });
 
 app.post('/api/sensor', (req, res) => {
-  const { nodeId, temperature, distance, latitude, longitude } = req.body;
+  const { nodeId, temperature, distance, latitude, longitude, overrideTargetNode } = req.body;
 
-  if (!nodeId || !nodesState[nodeId]) {
-    return res.status(400).json({ error: "Invalid or missing nodeId" });
+  let targetId = nodeId;
+  if (targetId === "A") targetId = "NODE_A";
+  else if (targetId === "B") targetId = "NODE_B";
+  else if (targetId === "C") targetId = "NODE_C";
+  else if (targetId === "D") targetId = "NODE_D";
+
+  if (overrideTargetNode && nodesState[overrideTargetNode]) {
+    targetId = overrideTargetNode;
+  } else if (activeNodeId && nodesState[activeNodeId]) {
+    targetId = activeNodeId;
+  } else if (!targetId || !nodesState[targetId]) {
+    targetId = "NODE_B";
   }
 
-  if (temperature !== undefined) nodesState[nodeId].temperature = parseFloat(temperature);
-  if (distance !== undefined) nodesState[nodeId].distance = parseFloat(distance);
-  if (latitude !== undefined) nodesState[nodeId].latitude = parseFloat(latitude);
-  if (longitude !== undefined) nodesState[nodeId].longitude = parseFloat(longitude);
-  nodesState[nodeId].lastUpdated = new Date().toISOString();
+  if (temperature !== undefined) nodesState[targetId].temperature = parseFloat(temperature);
+  if (distance !== undefined) nodesState[targetId].distance = parseFloat(distance);
+  if (latitude !== undefined) nodesState[targetId].latitude = parseFloat(latitude);
+  if (longitude !== undefined) nodesState[targetId].longitude = parseFloat(longitude);
+  nodesState[targetId].lastUpdated = new Date().toISOString();
 
-  const newRisk = calculateNodeRisk(nodesState[nodeId].temperature, nodesState[nodeId].distance);
-  const aiResult = evaluateAIAgent(nodeId, nodesState[nodeId].temperature, nodesState[nodeId].distance, newRisk);
+  const newRisk = calculateNodeRisk(nodesState[targetId].temperature, nodesState[targetId].distance);
+  const aiResult = evaluateAIAgent(targetId, nodesState[targetId].temperature, nodesState[targetId].distance, newRisk);
   const currentRoute = computeSafestRoute();
 
   eventLogs.unshift({
     id: Date.now(),
     timestamp: new Date().toISOString(),
     type: newRisk.level === "CRITICAL" ? "HAZARD_ALERT" : "TELEMETRY_UPDATE",
-    message: `[${nodeId}] Telemetry: ${nodesState[nodeId].temperature}°C, ${nodesState[nodeId].distance}m -> ${newRisk.pathState} (${newRisk.ledState} LED)`
+    message: `[${targetId}] Telemetry: ${nodesState[targetId].temperature}°C, ${nodesState[targetId].distance}cm -> ${newRisk.pathState} (${newRisk.ledState} LED)`
   });
 
   res.json({
     success: true,
-    nodeId,
+    nodeId: targetId,
     nodeState: {
-      ...nodesState[nodeId],
+      ...nodesState[targetId],
       riskInfo: newRisk,
       aiDecision: aiResult
     },
@@ -309,7 +338,7 @@ app.post('/api/ai-decision', (req, res) => {
   const { nodeId, temperature, distance, previous_risk } = req.body;
   const targetId = nodeId || "NODE_B";
   const tempVal = temperature !== undefined ? temperature : nodesState[targetId]?.temperature || 22;
-  const distVal = distance !== undefined ? distance : nodesState[targetId]?.distance || 2.4;
+  const distVal = distance !== undefined ? distance : nodesState[targetId]?.distance || 250.0;
 
   const riskObj = calculateNodeRisk(tempVal, distVal);
   const aiOutput = evaluateAIAgent(targetId, tempVal, distVal, riskObj);
@@ -328,46 +357,34 @@ app.post('/api/simulate-step', (req, res) => {
   const { step } = req.body;
 
   switch (step) {
-    case 1: // Baseline Safe <25°C
+    case 1:
       nodesState.NODE_A.temperature = 22.0;
-      nodesState.NODE_A.distance = 2.4;
+      nodesState.NODE_A.distance = 250.0;
       nodesState.NODE_B.temperature = 22.0;
-      nodesState.NODE_B.distance = 2.5;
+      nodesState.NODE_B.distance = 250.0;
       nodesState.NODE_C.temperature = 22.0;
-      nodesState.NODE_C.distance = 2.3;
+      nodesState.NODE_C.distance = 250.0;
       nodesState.NODE_D.temperature = 22.0;
-      nodesState.NODE_D.distance = 3.0;
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 1 (Normal): All nodes <25°C safe. Optimal GREEN path to Room D. White LED Blinking." });
+      nodesState.NODE_D.distance = 300.0;
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 1 (Normal): All nodes clear. White LED." });
       break;
 
-    case 2: // Temp > 27°C on Node A
+    case 2:
       nodesState.NODE_A.temperature = 29.0;
-      nodesState.NODE_A.distance = 2.4;
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 2 (Fire >27°C): Node A temperature = 29°C (>27°C limit). Node A path turns RED (Blocked). Red LED Blinking." });
+      nodesState.NODE_A.distance = 250.0;
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 2 (Fire >27°C): Node A temp = 29°C. Path RED (Blocked). Red LED." });
       break;
 
-    case 3: // Distance < 10cm on Node B
+    case 3:
       nodesState.NODE_B.temperature = 22.0;
-      nodesState.NODE_B.distance = 0.08; // 8cm
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 3 (Debris <10cm): Node B clearance = 0.08m (8cm < 10cm). Node B path turns RED (Blocked). Red LED Blinking." });
+      nodesState.NODE_B.distance = 8.0; // 8cm < 10cm
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 3 (Debris <10cm): Node B clearance = 8cm (<10cm). Path RED (Blocked). Red LED." });
       break;
 
-    case 4: // Temp 25°C - 27°C on Node C
+    case 4:
       nodesState.NODE_C.temperature = 26.0;
-      nodesState.NODE_C.distance = 2.3;
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 4 (Caution 25-27°C): Node C temperature = 26°C (25-27°C range). Node C path turns YELLOW (Restricted). Yellow LED Blinking." });
-      break;
-
-    case 5: // Optimal Exit Node D
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 5 (Optimal Route): Dijkstra selects GREEN path to Room D Exit." });
-      break;
-
-    case 6: // Hardware Blinking
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 6 (Physical Feedback): Hardware LEDs output Red Blinking (Node A & B), Yellow Blinking (Node C), White Blinking (Node D)." });
-      break;
-
-    case 7: // AI Explainability
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 7 (AI Explainability): AI Agent provides breakdown of >27°C temp and <10cm debris rules." });
+      nodesState.NODE_C.distance = 250.0;
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 4 (Caution 25-27°C): Node C temp = 26°C. Path YELLOW. Yellow LED." });
       break;
 
     default:
@@ -390,24 +407,24 @@ app.post('/api/simulate-step', (req, res) => {
 
 app.post('/api/reset', (req, res) => {
   nodesState.NODE_A.temperature = 22.0;
-  nodesState.NODE_A.distance = 2.4;
+  nodesState.NODE_A.distance = 250.0;
   nodesState.NODE_B.temperature = 22.0;
-  nodesState.NODE_B.distance = 2.5;
+  nodesState.NODE_B.distance = 250.0;
   nodesState.NODE_C.temperature = 22.0;
-  nodesState.NODE_C.distance = 2.3;
+  nodesState.NODE_C.distance = 250.0;
   nodesState.NODE_D.temperature = 22.0;
-  nodesState.NODE_D.distance = 3.0;
+  nodesState.NODE_D.distance = 300.0;
 
   eventLogs.unshift({
     id: Date.now(),
     timestamp: new Date().toISOString(),
     type: "SYSTEM_RESET",
-    message: "System reset to nominal baseline state. All nodes <25°C."
+    message: "System reset to baseline state. All node distances >25cm."
   });
 
   res.json({ success: true });
 });
 
 app.listen(PORT, () => {
-  console.log(`[AERIS Backend] Express risk & routing server running on http://localhost:${PORT}`);
+  console.log(`[AERIS Backend] Express server running on http://localhost:${PORT}`);
 });

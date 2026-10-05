@@ -6,9 +6,9 @@ export default function HardwareGuideModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const arduinoCode = `// AERIS Arduino UNO + DHT11 Firmware (Matched to Web App)
-// Pin 2: DHT11 Data | Pin 9: Trig | Pin 10: Echo
-// Pin 4: White LED (Safe) | Pin 5: Yellow LED (Warning) | Pin 6: Red LED (Hazard)
+  const arduinoCode = `// AERIS Arduino UNO / ESP32 Firmware (Matched to Web App)
+// Temperature limit: >=35°C (RED) | 30°C-35°C (YELLOW) | <30°C (WHITE/GREEN)
+// Debris limit: <10cm (RED) | 10cm-25cm (YELLOW) | >=25cm (WHITE/GREEN)
 
 #include <DHT.h>
 
@@ -18,8 +18,8 @@ export default function HardwareGuideModal({ isOpen, onClose }) {
 #define TRIG_PIN 9
 #define ECHO_PIN 10
 
-#define LED_WHITE 4  // White/Green LED (Safe / Optimal Path)
-#define LED_YELLOW 5 // Yellow LED (Warning / Caution)
+#define LED_WHITE 4  // White/Green LED (Safe Exit / Optimal Path)
+#define LED_YELLOW 5 // Yellow LED (Caution / Restricted)
 #define LED_RED 6    // Red LED (High Hazard / Blocked)
 
 DHT dht(DHTPIN, DHTTYPE);
@@ -50,43 +50,29 @@ void loop() {
   // 2. Read temperature in Celsius
   float temperature = dht.readTemperature();
   if (isnan(temperature)) {
-    temperature = 21.0; // Fallback if sensor initializing
+    temperature = 22.0; // Baseline fallback
   }
 
-  // 3. Determine Risk Condition & Dynamic Node Assignment
+  // 3. Risk Rules & LED Feedback
   bool blinkRed = false;
   bool blinkYellow = false;
   bool blinkWhite = false;
-  String simulatedNode = "D"; // Defaults to safe exit node
 
-  // Priority 1: High Heat (Node A)
-  if (temperature > 35.0) {
+  if (temperature >= 35.0 || distanceCm < 10.0) {
     blinkRed = true;
-    simulatedNode = "A";
   } 
-  // Priority 2: Debris Blockage (Node B)
-  else if (distanceCm < 10.0) {
-    blinkRed = true;
-    simulatedNode = "B";
-  } 
-  // Priority 3: Elevated Temperature Warning (Node C)
-  else if (temperature >= 30.0 && temperature <= 35.0) {
+  else if ((temperature >= 30.0 && temperature < 35.0) || (distanceCm >= 10.0 && distanceCm < 25.0)) {
     blinkYellow = true;
-    simulatedNode = "C";
   } 
-  // All Clear / Default (Node D)
   else {
     blinkWhite = true;
-    simulatedNode = "D";
   }
 
-  // 4. Send JSON to USB Serial Bridge (9600 baud)
-  Serial.print("{\"nodeId\":\"");
-  Serial.print(simulatedNode);
-  Serial.print("\",\"temperature\":");
+  // 4. Send JSON to USB Serial Bridge (9600 baud, distance in cm)
+  Serial.print("{\"temperature\":");
   Serial.print(temperature, 1);
   Serial.print(",\"distance\":");
-  Serial.print(distanceCm / 100.0, 2); // Sent as meters
+  Serial.print(distanceCm, 1); // Sent as centimeters
   Serial.print(",\"timestamp\":");
   Serial.print(millis() / 1000);
   Serial.println("}");
@@ -113,54 +99,56 @@ void loop() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md font-mono">
-      <div className="glass-panel w-full max-w-4xl max-h-[90vh] rounded-2xl flex flex-col overflow-hidden border border-slate-700 shadow-2xl">
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm font-sans select-none">
+      <div className="bg-[#0a0a0a] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-[#27272a] shadow-2xl">
+
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-[#27272a] flex items-center justify-between bg-[#050505]">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/40">
-              <Cpu className="w-6 h-6" />
+            <div className="p-2 bg-[#121212] text-[#80ff72] border border-[#80ff72]/40">
+              <Cpu className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Arduino Hardware Wiring & Serial Bridge Guide</h2>
-              <p className="text-xs text-slate-400">9600 Baud Rate Serial Stream & Dynamic Node Assignment (A, B, C, D)</p>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                Hardware Wiring & Serial Spec
+              </h2>
+              <p className="text-xs text-zinc-400">9600 Baud Rate Serial Stream & Live Node Evaluation</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+            className="p-1 text-zinc-400 hover:text-white transition-all"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-300">
-          
+        <div className="p-5 overflow-y-auto space-y-5 text-xs text-zinc-300">
+
           {/* Rules Summary */}
-          <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl space-y-2">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400" />
-              Dynamic Arduino Node Assignment Logic
+          <div className="bg-[#050505] p-3.5 border border-[#27272a] space-y-2">
+            <h3 className="text-xs font-bold text-white flex items-center gap-2 uppercase">
+              <Zap className="w-4 h-4 text-[#80ff72]" />
+              Serial Telemetry Rules
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-[11px]">
-              <div className="p-2 bg-slate-900 border border-red-500/40 text-red-300">
-                <strong>Node A (High Heat):</strong><br/>
-                Temp &gt; 35°C (Red LED Pin 6)
+              <div className="p-2 bg-[#0c0c0d] border border-red-500/40 text-red-300">
+                <strong>High Heat (Fire):</strong><br />
+                Temp &gt;= 35°C (Red LED Pin 6)
               </div>
-              <div className="p-2 bg-slate-900 border border-red-500/40 text-red-300">
-                <strong>Node B (Debris):</strong><br/>
+              <div className="p-2 bg-[#0c0c0d] border border-red-500/40 text-red-300">
+                <strong>Debris Obstruction:</strong><br />
                 Distance &lt; 10cm (Red LED Pin 6)
               </div>
-              <div className="p-2 bg-slate-900 border border-amber-500/40 text-amber-300">
-                <strong>Node C (Caution):</strong><br/>
-                Temp 30°C – 35°C (Yellow Pin 5)
+              <div className="p-2 bg-[#0c0c0d] border border-amber-500/40 text-amber-300">
+                <strong>Caution Zone:</strong><br />
+                Temp 30°C-35°C / 10-25cm (Yellow Pin 5)
               </div>
-              <div className="p-2 bg-slate-900 border border-emerald-500/40 text-emerald-300">
-                <strong>Node D (Safe Exit):</strong><br/>
-                All Clear (White LED Pin 4)
+              <div className="p-2 bg-[#0c0c0d] border border-[#80ff72]/40 text-[#80ff72]">
+                <strong>Safe Path:</strong><br />
+                Temp &lt; 30°C &amp; Clear (White Pin 4)
               </div>
             </div>
           </div>
@@ -168,20 +156,20 @@ void loop() {
           {/* Firmware Code Block */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Radio className="w-4 h-4 text-cyan-400" />
-                Arduino C++ Code (`aeris_arduino_dynamic.ino`)
+              <h3 className="text-xs font-bold text-white flex items-center gap-2 uppercase">
+                <Radio className="w-4 h-4 text-[#80ff72]" />
+                Arduino / ESP32 C++ Firmware
               </h3>
               <button
                 onClick={copyToClipboard}
-                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold flex items-center gap-1.5 transition-all text-xs"
+                className="px-3 py-1 bg-[#121212] hover:bg-[#1c1c1e] text-[#80ff72] border border-[#80ff72]/40 font-bold flex items-center gap-1.5 transition-all text-xs"
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copied Code!' : 'Copy Arduino Code'}
+                {copied ? 'Copied Code!' : 'Copy Code'}
               </button>
             </div>
 
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-[11px] text-cyan-200 overflow-x-auto max-h-[280px]">
+            <div className="bg-[#050505] p-3.5 border border-[#27272a] text-[11px] text-[#80ff72] font-mono overflow-x-auto max-h-[280px]">
               <pre>{arduinoCode}</pre>
             </div>
           </div>
@@ -192,3 +180,4 @@ void loop() {
     </div>
   );
 }
+

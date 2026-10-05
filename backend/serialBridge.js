@@ -3,43 +3,43 @@ import { ReadlineParser } from '@serialport/parser-readline';
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api/sensor';
 const TARGET_PORT = process.argv[2]; // e.g. COM4 or /dev/ttyUSB0
-const BAUD_RATE = parseInt(process.env.BAUD_RATE || '9600', 10); // Matched to Serial.begin(9600)
+const BAUD_RATE = parseInt(process.env.BAUD_RATE || '9600', 10);
 
 async function main() {
   const ports = await SerialPort.list();
   
   if (ports.length === 0) {
-    console.log('\n❌ No USB/Serial ports detected.');
-    console.log('👉 Please plug in your Arduino USB cable and try again.\n');
+    console.log('\n[ERROR] No USB/Serial ports detected.');
+    console.log('[HELP] Please plug in your Arduino USB cable and try again.\n');
     process.exit(1);
   }
 
-  console.log('\n🔌 Detected Serial Devices:');
+  console.log('\n[BRIDGE] Detected Serial Devices:');
   let arduinoPort = null;
   ports.forEach((p, idx) => {
     const isArduino = (p.manufacturer || '').toLowerCase().includes('arduino') || (p.pnpId || '').toLowerCase().includes('arduino');
     if (isArduino && !arduinoPort) {
       arduinoPort = p.path;
     }
-    console.log(`  [${idx + 1}] ${p.path} — ${p.manufacturer || p.pnpId || 'USB Serial Device'} ${isArduino ? '⭐ (Arduino Detected)' : ''}`);
+    console.log(`  [${idx + 1}] ${p.path} / ${p.manufacturer || p.pnpId || 'USB Serial Device'} ${isArduino ? '(Arduino Detected)' : ''}`);
   });
 
   const selectedPath = TARGET_PORT || arduinoPort || ports[0].path;
-  console.log(`\n🚀 Connecting to Serial Port: ${selectedPath} (${BAUD_RATE} baud)...`);
+  console.log(`\n[BRIDGE] Connecting to Serial Port: ${selectedPath} (${BAUD_RATE} baud)...`);
 
   try {
     const port = new SerialPort({ path: selectedPath, baudRate: BAUD_RATE });
     const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
     port.on('open', () => {
-      console.log(`✅ Serial Bridge ACTIVE! Streaming Arduino live telemetry to AERIS Web App...\n`);
+      console.log(`[SUCCESS] Serial Bridge ACTIVE. Streaming Arduino live telemetry to AERIS Web App...\n`);
     });
 
     parser.on('data', async (line) => {
       const text = line.trim();
       if (!text) return;
 
-      console.log(`📡 Serial Raw: ${text}`);
+      console.log(`[RAW SERIAL] ${text}`);
 
       let payload = null;
 
@@ -57,7 +57,6 @@ async function main() {
       }
 
       if (payload && payload.nodeId && payload.temperature !== undefined) {
-        // Normalize nodeId: "A" -> "NODE_A", "B" -> "NODE_B", "C" -> "NODE_C", "D" -> "NODE_D"
         let nodeStr = String(payload.nodeId).trim().toUpperCase();
         if (nodeStr === "A") nodeStr = "NODE_A";
         else if (nodeStr === "B") nodeStr = "NODE_B";
@@ -73,23 +72,26 @@ async function main() {
             body: JSON.stringify(payload)
           });
           if (res.ok) {
-            console.log(`  └─ 🟢 Live Telemetry Pushed -> Node=${payload.nodeId}, Temp=${payload.temperature}°C, Dist=${payload.distance}m`);
+            const data = await res.json();
+            const targetNode = data.nodeId || payload.nodeId;
+            console.log(`  └─ [POST SENSOR] Node=${targetNode}, Temp=${payload.temperature}°C, Dist=${payload.distance}cm`);
           } else {
-            console.log(`  └─ 🔴 API Server Status: ${res.status}`);
+            console.log(`  └─ [ERROR] API Status: ${res.status}`);
           }
         } catch (err) {
-          console.log(`  └─ 🔴 API Error (Is Express running on http://localhost:3001?): ${err.message}`);
+          console.log(`  └─ [ERROR] API Fetch Error: ${err.message}`);
         }
       }
     });
 
     port.on('error', (err) => {
-      console.error(`❌ Serial Port Error:`, err.message);
+      console.error(`[ERROR] Serial Port Error:`, err.message);
     });
 
   } catch (err) {
-    console.error(`❌ Failed to open serial port ${selectedPath}:`, err.message);
+    console.error(`[ERROR] Failed to open serial port ${selectedPath}:`, err.message);
   }
 }
 
 main();
+
