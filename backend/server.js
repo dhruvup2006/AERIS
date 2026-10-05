@@ -1,11 +1,16 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 
 const app = express();
-app.use(cors());
+
+const corsOrigin = process.env.CORS_ORIGIN || '*';
+app.use(cors({
+  origin: corsOrigin === '*' ? '*' : corsOrigin.split(',').map(s => s.trim())
+}));
 app.use(express.json());
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Initial Building Graph & Node State
 // Nodes representing locations: START, NODE_A (Corridor A), NODE_B (Corridor B), NODE_C (West Wing), NODE_D (East Hall), EXIT_1 (North Exit), EXIT_2 (South Exit)

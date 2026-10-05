@@ -170,24 +170,65 @@ Use the 1-click **Hackathon Demo Control Bar** inside the web dashboard to demon
 
 ## 🛠 Local Setup & Running Instructions
 
-### 1. Install Dependencies
+### 1. Project Directory Structure
+The repository is split into distinct `frontend` and `backend` services:
+- **`backend/`**: Node.js & Express API server handling IoT sensor data, Gemma 4 AI evaluations, and Dijkstra graph routing.
+- **`frontend/`**: React + Vite + Tailwind CSS interactive dashboard command center.
+
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` in both directories:
+
+**Backend (`backend/.env`):**
 ```bash
-npm install
+cp backend/.env.example backend/.env
+# Edit PORT (default 3001), CORS_ORIGIN, etc.
 ```
 
-### 2. Start Express Backend Server
-In one terminal window, start the backend API server:
+**Frontend (`frontend/.env`):**
 ```bash
-npm run server
+cp frontend/.env.example frontend/.env
+# Edit VITE_PORT (default 5173), VITE_API_BASE_URL (default http://localhost:3001)
 ```
-*Backend will run on http://localhost:3001*
 
-### 3. Start Frontend Dashboard
-In a second terminal window, launch the Vite dev app:
+### 3. Install Dependencies
 ```bash
+npm run install:all
+```
+*(or run `npm install` inside `frontend/` and `backend/` individually)*
+
+### 4. Start Backend & Frontend Services
+
+Open two terminal windows to run both servers concurrently:
+
+#### Option A: Run from Root Directory
+
+**Terminal 1 — Start Backend Server:**
+```bash
+npm run dev:backend
+```
+*Runs Express API on `http://localhost:3001`*
+
+**Terminal 2 — Start Frontend Dashboard:**
+```bash
+npm run dev:frontend
+```
+*Runs Vite Dev Server on `http://localhost:5173`*
+
+---
+
+#### Option B: Run from Service Folders
+
+**Terminal 1 — Backend (`backend/`):**
+```bash
+cd backend
 npm run dev
 ```
-*Web dashboard will launch at http://localhost:5173*
+
+**Terminal 2 — Frontend (`frontend/`):**
+```bash
+cd frontend
+npm run dev
+```
 
 ---
 
