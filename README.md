@@ -1,4 +1,4 @@
-# AERIS — AI Emergency Response & Intelligent Routing System
+# AERIS — AI Emergency Response & Intelligent Routing System 
 
 [![Gemma 4 Powered](https://img.shields.io/badge/AI_Engine-Gemma_4_Agent-purple.svg)](https://deepmind.google/)
 [![Hardware](https://img.shields.io/badge/Hardware-ESP32_%7C_Arduino-blue.svg)](https://www.espressif.com/)
