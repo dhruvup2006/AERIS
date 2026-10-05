@@ -65,8 +65,8 @@ export default function Header({
               <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-800/80">
                 v1.0
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800/70 flex items-center gap-1">
-                <Cpu className="w-3 h-3 text-purple-400" /> Gemma 4 Agent
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-950/80 text-cyan-300 border border-cyan-800/70 flex items-center gap-1">
+                <Cpu className="w-3 h-3 text-cyan-400" /> AI Risk Agent
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block">
