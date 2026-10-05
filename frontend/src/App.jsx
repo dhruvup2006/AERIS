@@ -3,6 +3,7 @@ import Header from './components/Header';
 import BuildingMap from './components/BuildingMap';
 import RightDeck from './components/RightDeck';
 import HardwareGuideModal from './components/HardwareGuideModal';
+import { SparklesCore } from '@/components/ui/sparkles';
 import {
   INITIAL_NODES,
   buildFullSystemState,
@@ -93,7 +94,7 @@ export default function App() {
         id: Date.now(),
         timestamp: new Date().toISOString(),
         type: riskInfo.level === 'CRITICAL' ? 'HAZARD_ALERT' : 'TELEMETRY_UPDATE',
-        message: `[${nodeId}] Live Telemetry: Temp=${updatedNode.temperature}°C, Dist=${updatedNode.distance}m -> ${riskInfo.level}`
+        message: `[${nodeId}] Live Telemetry: Temp=${updatedNode.temperature}°C, Dist=${updatedNode.distance}cm -> ${riskInfo.level}`
       };
 
       return {
@@ -130,62 +131,81 @@ export default function App() {
   const eventLogs = systemState?.eventLogs || [];
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#050505] text-zinc-100 overflow-hidden font-sans select-none antialiased">
+    <div className="h-screen w-screen flex flex-col bg-[#050505] text-zinc-100 overflow-hidden font-sans select-none antialiased relative">
+      
+      {/* Background Sparkles Effect */}
+      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+        <SparklesCore
+          id="tsparticlesbg"
+          background="transparent"
+          minSize={0.4}
+          maxSize={1.2}
+          particleDensity={40}
+          className="w-full h-full"
+          particleColor="#38bdf8"
+          speed={0.5}
+        />
+      </div>
 
-      {/* 1. Header */}
-      <Header
-        systemState={systemState}
-        accessedNodes={accessedNodes}
-        onReset={handleReset}
-        onOpenHardware={() => setIsHardwareModalOpen(true)}
-        isLiveUpdating={isLivePolling}
-        toggleLiveSimulation={() => setIsLivePolling(!isLivePolling)}
-      />
+      {/* Main Content Layer */}
+      <div className="relative z-10 flex flex-col h-full w-full overflow-hidden">
 
-      {/* 2. Main Monitoring Grid */}
-      <main className="flex-1 min-h-0 p-2.5 sm:p-3 lg:p-4 grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-3 lg:gap-4 overflow-hidden">
+        {/* 1. Header */}
+        <Header
+          systemState={systemState}
+          accessedNodes={accessedNodes}
+          onReset={handleReset}
+          onOpenHardware={() => setIsHardwareModalOpen(true)}
+          isLiveUpdating={isLivePolling}
+          toggleLiveSimulation={() => setIsLivePolling(!isLivePolling)}
+        />
 
-        {/* Left Column: Architectural Map */}
-        <div className="lg:col-span-7 h-full flex flex-col min-h-0 overflow-hidden">
-          <BuildingMap
-            nodes={nodes}
-            accessedNodes={accessedNodes}
-            safestRoute={safestRoute}
-            onSelectNode={handleSelectNode}
-            selectedNodeId={selectedNodeId}
-          />
-        </div>
+        {/* 2. Main Monitoring Grid */}
+        <main className="flex-1 min-h-0 p-2.5 sm:p-3 lg:p-4 grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-3 lg:gap-4 overflow-hidden">
 
-        {/* Right Column: Live Telemetry & Serial Terminal */}
-        <div className="lg:col-span-5 h-full flex flex-col min-h-0 overflow-hidden">
-          <RightDeck
-            nodes={nodes}
-            accessedNodes={accessedNodes}
-            selectedNodeId={selectedNodeId}
-            onSelectNode={handleSelectNode}
-            onUpdateSensor={handleUpdateSensor}
-            safestRoute={safestRoute}
-            eventLogs={eventLogs}
-          />
-        </div>
+          {/* Left Column: Architectural Map */}
+          <div className="lg:col-span-7 h-full flex flex-col min-h-0 overflow-hidden">
+            <BuildingMap
+              nodes={nodes}
+              accessedNodes={accessedNodes}
+              safestRoute={safestRoute}
+              onSelectNode={handleSelectNode}
+              selectedNodeId={selectedNodeId}
+            />
+          </div>
 
-      </main>
+          {/* Right Column: Live Telemetry & Serial Terminal */}
+          <div className="lg:col-span-5 h-full flex flex-col min-h-0 overflow-hidden">
+            <RightDeck
+              nodes={nodes}
+              accessedNodes={accessedNodes}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={handleSelectNode}
+              onUpdateSensor={handleUpdateSensor}
+              safestRoute={safestRoute}
+              eventLogs={eventLogs}
+            />
+          </div>
 
-      {/* 3. Monospace Footer */}
-      <footer className="bg-[#050505] border-t border-[#27272a] px-4 py-1.5 text-[11px] font-mono text-zinc-500 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-[#80ff72]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#80ff72] animate-pulse" /> / aeris-telemetry v1.1
-          </span>
-          <span className="hidden sm:inline text-zinc-700">|</span>
-          <span className="hidden sm:inline text-zinc-400">Dijkstra Dynamic Safe Evacuation Graph</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[#80ff72] font-bold">[ LIVE TELEMETRY FEED ]</span>
-          <span className="text-zinc-700">|</span>
-          <span className="text-zinc-400">Arduino / ESP32 Serial USB Bridge</span>
-        </div>
-      </footer>
+        </main>
+
+        {/* 3. Monospace Footer */}
+        <footer className="bg-[#050505] border-t border-[#27272a] px-4 py-1.5 text-[11px] font-mono text-zinc-500 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-sky-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" /> / aeris-telemetry v1.1
+            </span>
+            <span className="hidden sm:inline text-zinc-700">|</span>
+            <span className="hidden sm:inline text-zinc-400">Dijkstra Dynamic Safe Evacuation Graph</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sky-400 font-bold">[ LIVE TELEMETRY FEED ]</span>
+            <span className="text-zinc-700">|</span>
+            <span className="text-zinc-400">Arduino / ESP32 Serial USB Bridge</span>
+          </div>
+        </footer>
+
+      </div>
 
       {/* 4. Hardware Guide Modal */}
       <HardwareGuideModal
@@ -196,5 +216,3 @@ export default function App() {
     </div>
   );
 }
-
-

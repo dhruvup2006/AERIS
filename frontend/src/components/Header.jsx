@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, ShieldCheck, AlertTriangle, AlertOctagon, Radio, RotateCcw, BookOpen, Clock } from 'lucide-react';
+import { HudButton } from '@/components/ui/hud-button';
 
 export default function Header({
   systemState,
@@ -53,8 +54,8 @@ export default function Header({
   } else {
     statusConfig = {
       label: 'NOMINAL / ACCESSED SECTORS OPTIMAL',
-      textColor: 'text-[#80ff72]',
-      dotColor: 'bg-[#80ff72]',
+      textColor: 'text-sky-400',
+      dotColor: 'bg-sky-400',
       icon: ShieldCheck
     };
   }
@@ -63,20 +64,20 @@ export default function Header({
 
   return (
     <header className="bg-[#050505] border-b border-[#27272a] px-4 lg:px-6 py-2 sticky top-0 z-40 font-sans select-none">
-      <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3 py-1">
 
         {/* Brand identity */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-[#80ff72] font-bold text-sm tracking-wide">/ aeris</span>
+            <span className="text-sky-400 font-bold text-sm tracking-wide">/ aeris</span>
             <span className="text-[10px] text-zinc-500">v1.1</span>
           </div>
 
           <span className="text-zinc-800 hidden sm:inline">|</span>
 
           <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#80ff72] animate-pulse" />
-            <span className="text-[#80ff72]">LIVE SENSOR TELEMETRY</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            <span className="text-sky-400">LIVE TELEMETRY</span>
           </div>
         </div>
 
@@ -90,53 +91,44 @@ export default function Header({
 
           <div className="hidden xl:flex items-center gap-2 text-[11px] font-mono text-zinc-400">
             <span className="text-zinc-700">|</span>
-            <Clock className="w-3.5 h-3.5 text-[#80ff72]" />
-            <span className="text-[#80ff72] font-bold">{timeStr || '00:00:00'}</span>
+            <Clock className="w-3.5 h-3.5 text-sky-400" />
+            <span className="text-sky-400 font-bold">{timeStr || '00:00:00'}</span>
             <span className="text-zinc-700">|</span>
             <span className="text-zinc-400">{accessedNodes.size}/4 Nodes Accessed</span>
           </div>
         </div>
 
-        {/* Header Actions */}
-        <div className="flex items-center gap-4 text-xs">
-          <button
+        {/* Header Actions with HudButton */}
+        <div className="flex items-center gap-2 text-xs">
+          <HudButton
+            style="style2"
+            size="small"
+            variant={isLiveUpdating ? "primary" : "secondary"}
             onClick={toggleLiveSimulation}
-            className={`flex items-center gap-1.5 transition-colors ${
-              isLiveUpdating ? 'text-[#80ff72]' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-            title="Toggle live backend polling"
           >
-            <Radio className={`w-3.5 h-3.5 ${isLiveUpdating ? 'text-[#80ff72] animate-pulse' : 'text-zinc-600'}`} />
-            <span>{isLiveUpdating ? 'Live Poll: ON' : 'Live Poll: OFF'}</span>
-          </button>
+            {isLiveUpdating ? "POLL ON" : "POLL OFF"}
+          </HudButton>
 
-          <span className="text-zinc-800">|</span>
-
-          <button
+          <HudButton
+            style="style2"
+            size="small"
+            variant="secondary"
             onClick={onOpenHardware}
-            className="text-zinc-400 hover:text-[#80ff72] transition-colors flex items-center gap-1.5"
-            title="Arduino / ESP32 Hardware Wiring Spec"
           >
-            <BookOpen className="w-3.5 h-3.5 text-[#80ff72]" />
-            <span className="hidden sm:inline">Hardware Spec</span>
-          </button>
+            HARDWARE
+          </HudButton>
 
-          <span className="text-zinc-800">|</span>
-
-          <button
+          <HudButton
+            style="style2"
+            size="small"
+            variant="secondary"
             onClick={onReset}
-            className="text-zinc-400 hover:text-[#80ff72] transition-colors flex items-center gap-1.5"
-            title="Reset Sensors to Baseline"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Reset</span>
-          </button>
+            RESET
+          </HudButton>
         </div>
 
       </div>
     </header>
   );
 }
-
-
-

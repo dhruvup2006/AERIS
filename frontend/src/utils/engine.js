@@ -1,10 +1,9 @@
 // Client-side Risk and Dijkstra Engine for AERIS
-// Matched to Arduino UNO Dynamic Node Assignment Code
 
 export const INITIAL_NODES = {
   NODE_A: {
     id: "NODE_A",
-    name: "Room A (High Heat >27°C)",
+    name: "Room A",
     zone: "West Sector",
     temperature: 22.0,
     distance: 250.0,
@@ -12,7 +11,7 @@ export const INITIAL_NODES = {
   },
   NODE_B: {
     id: "NODE_B",
-    name: "Room B (Blockage <10cm)",
+    name: "Room B",
     zone: "North Sector",
     temperature: 22.0,
     distance: 250.0,
@@ -20,7 +19,7 @@ export const INITIAL_NODES = {
   },
   NODE_C: {
     id: "NODE_C",
-    name: "Room C (Caution 25-27°C)",
+    name: "Room C",
     zone: "East Sector",
     temperature: 22.0,
     distance: 250.0,
@@ -28,7 +27,7 @@ export const INITIAL_NODES = {
   },
   NODE_D: {
     id: "NODE_D",
-    name: "Room D (Safe Exit Gate)",
+    name: "Room D",
     zone: "South Sector Exit",
     temperature: 22.0,
     distance: 300.0,
@@ -88,7 +87,7 @@ export function calculateNodeRisk(temp, dist) {
     level: "SAFE",
     ledState: "WHITE",
     pathState: "SAFE",
-    pathColor: "#10b981"
+    pathColor: "#38bdf8"
   };
 }
 
@@ -100,18 +99,18 @@ export function evaluateAILocal(nodeId, temp, dist, riskObj) {
   if (level === "CRITICAL") {
     recommended_action = "AVOID";
     if (temp >= 35.0 && dist < 10.0) {
-      reason = `Temperature >=35°C (${temp}°C) & obstacle <10cm (${dist.toFixed(0)}cm) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
+      reason = `Temperature >=35°C (${temp}°C) & obstacle <10cm (${dist.toFixed(0)}cm) at ${nodeId}. Path BLOCKED. Red LED Blinking.`;
     } else if (temp >= 35.0) {
-      reason = `High heat >=35°C (${temp}°C) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
+      reason = `High heat >=35°C (${temp}°C) at ${nodeId}. Path BLOCKED. Red LED Blinking.`;
     } else {
-      reason = `Debris obstacle <10cm (${dist.toFixed(0)}cm) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
+      reason = `Debris obstacle <10cm (${dist.toFixed(0)}cm) at ${nodeId}. Path BLOCKED. Red LED Blinking.`;
     }
   } else if (level === "WARNING") {
     recommended_action = "MONITOR";
-    reason = `Temperature 30-35°C (${temp}°C) or debris 10-25cm (${dist.toFixed(0)}cm) at ${nodeId}. Path RESTRICTED (YELLOW). Yellow LED Blinking.`;
+    reason = `Temperature 30-35°C (${temp}°C) or debris 10-25cm (${dist.toFixed(0)}cm) at ${nodeId}. Path RESTRICTED. Yellow LED Blinking.`;
   } else {
     recommended_action = "SAFE";
-    reason = `Temperature <30°C (${temp}°C) & clear distance (${dist.toFixed(0)}cm) at ${nodeId}. Path SAFE (GREEN). White LED Blinking.`;
+    reason = `Temperature <30°C (${temp}°C) & clear distance (${dist.toFixed(0)}cm) at ${nodeId}. Path SAFE. White LED Blinking.`;
   }
 
   const agenticToolsUsed = [
@@ -142,8 +141,8 @@ export function computeSafestRouteLocal(nodesMap) {
   });
 
   BASE_EDGES.forEach(edge => {
-    const fromNode = nodesMap[edge.from] || { temperature: 21, distance: 2.5 };
-    const toNode = nodesMap[edge.to] || { temperature: 21, distance: 2.5 };
+    const fromNode = nodesMap[edge.from] || { temperature: 22, distance: 250 };
+    const toNode = nodesMap[edge.to] || { temperature: 22, distance: 250 };
     const fromRisk = calculateNodeRisk(fromNode.temperature, fromNode.distance).totalRisk;
     const toRisk = calculateNodeRisk(toNode.temperature, toNode.distance).totalRisk;
     const maxRisk = Math.max(fromRisk, toRisk);
@@ -205,13 +204,38 @@ export function computeSafestRouteLocal(nodesMap) {
     return { path, cost: distances[targetExit] };
   }
 
-  const routeExit = dijkstra("NODE_A", "NODE_D");
+  // Determine safest exit dynamically!
+  let bestExit = "NODE_D";
+  let lowestExitRisk = calculateNodeRisk(
+    nodesMap["NODE_D"]?.temperature || 22,
+    nodesMap["NODE_D"]?.distance || 250
+  ).totalRisk;
+
+  if (lowestExitRisk >= 85) {
+    // NODE_D is blocked, evaluate alternative exits
+    for (const key of ["NODE_C", "NODE_B", "NODE_A"]) {
+      const r = calculateNodeRisk(
+        nodesMap[key]?.temperature || 22,
+        nodesMap[key]?.distance || 250
+      ).totalRisk;
+      if (r < 85 && (bestExit === "NODE_D" || r < lowestExitRisk)) {
+        bestExit = key;
+        lowestExitRisk = r;
+      }
+    }
+  }
+
+  let routeResult = dijkstra("NODE_A", bestExit);
+  if (routeResult.path.length === 0 && bestExit !== "NODE_D") {
+    routeResult = dijkstra("NODE_A", "NODE_D");
+    if (routeResult.path.length > 0) bestExit = "NODE_D";
+  }
 
   return {
-    path: routeExit.path.length > 0 ? routeExit.path : ["NODE_A", "NODE_C", "NODE_D"],
-    cost: routeExit.cost !== Infinity ? Math.round(routeExit.cost) : 12,
-    targetExit: "NODE_D",
-    routeOptionA: { name: "Safest Path -> Room D Exit", path: routeExit.path, cost: Math.round(routeExit.cost) }
+    path: routeResult.path.length > 0 ? routeResult.path : [bestExit],
+    cost: routeResult.cost !== Infinity ? Math.round(routeResult.cost) : 12,
+    targetExit: bestExit,
+    isDynamicReroute: bestExit !== "NODE_D"
   };
 }
 
@@ -234,7 +258,7 @@ export function buildFullSystemState(rawNodes = INITIAL_NODES, existingLogs = []
       timestamp: new Date().toLocaleTimeString(),
       type: "SYSTEM_INIT",
       level: "SAFE",
-      message: "AERIS Arduino System active. Nodes A, B, C, D listening for live serial USB telemetry."
+      message: "AERIS Arduino System active. Nodes listening for live serial USB telemetry."
     }
   ];
 

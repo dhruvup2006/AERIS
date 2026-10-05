@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
-/* AERIS Command Center Design System */
+/* AERIS Command Center Design System - Sky / Cyan / Slate (No Green) */
 
 :root {
   --bg-pitch: #050505;
   --bg-card: #0a0a0a;
   --bg-elevated: #121212;
   --border-terminal: #27272a;
-  --border-accent: rgba(128, 255, 114, 0.25);
+  --border-accent: rgba(56, 189, 248, 0.25);
   
-  --color-green-neon: #80ff72;
-  --color-green-accent: #4ade80;
-  --color-safe: #4ade80;
+  --color-green-neon: #38bdf8;
+  --color-green-accent: #38bdf8;
+  --color-safe: #38bdf8;
   --color-warning: #fbbf24;
   --color-critical: #f87171;
 }
@@ -46,12 +46,12 @@ body {
 }
 
 .terminal-card:hover {
-  border-color: rgba(128, 255, 114, 0.4);
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
 /* Glowing Terminal Highlights */
 .glow-safe {
-  box-shadow: 0 0 12px rgba(74, 222, 128, 0.3);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
 }
 
 .glow-warning {
@@ -64,7 +64,7 @@ body {
 }
 
 .glow-terminal {
-  box-shadow: 0 0 15px rgba(128, 255, 114, 0.25);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
 }
 
 /* Keyframes */
@@ -108,11 +108,9 @@ body {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(-4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -145,5 +143,5 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #80ff72;
+  background: #38bdf8;
 }

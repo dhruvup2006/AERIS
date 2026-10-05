@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Cpu, Zap, Radio } from 'lucide-react';
+import { HudButton } from '@/components/ui/hud-button';
 
 export default function HardwareGuideModal({ isOpen, onClose }) {
   const [copied, setCopied] = useState(false);
@@ -7,8 +8,8 @@ export default function HardwareGuideModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const arduinoCode = `// AERIS Arduino UNO / ESP32 Firmware (Matched to Web App)
-// Temperature limit: >=35°C (RED) | 30°C-35°C (YELLOW) | <30°C (WHITE/GREEN)
-// Debris limit: <10cm (RED) | 10cm-25cm (YELLOW) | >=25cm (WHITE/GREEN)
+// Temperature limit: >=35°C (RED) | 30°C-35°C (YELLOW) | <30°C (WHITE/SKY BLUE)
+// Debris limit: <10cm (RED) | 10cm-25cm (YELLOW) | >=25cm (WHITE/SKY BLUE)
 
 #include <DHT.h>
 
@@ -18,7 +19,7 @@ export default function HardwareGuideModal({ isOpen, onClose }) {
 #define TRIG_PIN 9
 #define ECHO_PIN 10
 
-#define LED_WHITE 4  // White/Green LED (Safe Exit / Optimal Path)
+#define LED_WHITE 4  // White/Sky Blue LED (Safe Exit / Optimal Path)
 #define LED_YELLOW 5 // Yellow LED (Caution / Restricted)
 #define LED_RED 6    // Red LED (High Hazard / Blocked)
 
@@ -69,11 +70,11 @@ void loop() {
   }
 
   // 4. Send JSON to USB Serial Bridge (9600 baud, distance in cm)
-  Serial.print("{\"temperature\":");
+  Serial.print("{\\"temperature\\":");
   Serial.print(temperature, 1);
-  Serial.print(",\"distance\":");
+  Serial.print(",\\"distance\\":");
   Serial.print(distanceCm, 1); // Sent as centimeters
-  Serial.print(",\"timestamp\":");
+  Serial.print(",\\"timestamp\\":");
   Serial.print(millis() / 1000);
   Serial.println("}");
 
@@ -105,7 +106,7 @@ void loop() {
         {/* Header */}
         <div className="p-4 border-b border-[#27272a] flex items-center justify-between bg-[#050505]">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#121212] text-[#80ff72] border border-[#80ff72]/40">
+            <div className="p-2 bg-[#121212] text-sky-400 border border-sky-500/40">
               <Cpu className="w-5 h-5" />
             </div>
             <div>
@@ -130,7 +131,7 @@ void loop() {
           {/* Rules Summary */}
           <div className="bg-[#050505] p-3.5 border border-[#27272a] space-y-2">
             <h3 className="text-xs font-bold text-white flex items-center gap-2 uppercase">
-              <Zap className="w-4 h-4 text-[#80ff72]" />
+              <Zap className="w-4 h-4 text-sky-400" />
               Serial Telemetry Rules
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-[11px]">
@@ -146,7 +147,7 @@ void loop() {
                 <strong>Caution Zone:</strong><br />
                 Temp 30°C-35°C / 10-25cm (Yellow Pin 5)
               </div>
-              <div className="p-2 bg-[#0c0c0d] border border-[#80ff72]/40 text-[#80ff72]">
+              <div className="p-2 bg-[#0c0c0d] border border-sky-500/40 text-sky-400">
                 <strong>Safe Path:</strong><br />
                 Temp &lt; 30°C &amp; Clear (White Pin 4)
               </div>
@@ -157,19 +158,20 @@ void loop() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold text-white flex items-center gap-2 uppercase">
-                <Radio className="w-4 h-4 text-[#80ff72]" />
+                <Radio className="w-4 h-4 text-sky-400" />
                 Arduino / ESP32 C++ Firmware
               </h3>
-              <button
+              <HudButton
+                style="style2"
+                size="small"
+                variant="primary"
                 onClick={copyToClipboard}
-                className="px-3 py-1 bg-[#121212] hover:bg-[#1c1c1e] text-[#80ff72] border border-[#80ff72]/40 font-bold flex items-center gap-1.5 transition-all text-xs"
               >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copied Code!' : 'Copy Code'}
-              </button>
+                {copied ? 'COPIED' : 'COPY CODE'}
+              </HudButton>
             </div>
 
-            <div className="bg-[#050505] p-3.5 border border-[#27272a] text-[11px] text-[#80ff72] font-mono overflow-x-auto max-h-[280px]">
+            <div className="bg-[#050505] p-3.5 border border-[#27272a] text-[11px] text-sky-400 font-mono overflow-x-auto max-h-[280px]">
               <pre>{arduinoCode}</pre>
             </div>
           </div>
@@ -180,4 +182,3 @@ void loop() {
     </div>
   );
 }
-

@@ -4,10 +4,10 @@ import { Navigation } from 'lucide-react';
 export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRoute, onSelectNode, selectedNodeId }) {
   // 4 Node Blueprint Coordinates (Room A, B, C, D)
   const nodePositions = {
-    NODE_A: { x: 180, y: 150, label: "ROOM A (WEST)", zone: "Room A - Fire Monitored" },
-    NODE_B: { x: 500, y: 150, label: "ROOM B (NORTH)", zone: "Room B - Debris Monitored" },
-    NODE_C: { x: 180, y: 330, label: "ROOM C (EAST)", zone: "Room C - Caution Room" },
-    NODE_D: { x: 500, y: 330, label: "ROOM D (SOUTH EXIT)", zone: "Room D - Safe Exit" }
+    NODE_A: { x: 185, y: 130, labelX: 80, labelY: 170, roomName: "ROOM A" },
+    NODE_B: { x: 495, y: 130, labelX: 390, labelY: 170, roomName: "ROOM B" },
+    NODE_C: { x: 185, y: 320, labelX: 80, labelY: 360, roomName: "ROOM C" },
+    NODE_D: { x: 495, y: 320, labelX: 390, labelY: 360, roomName: "ROOM D" }
   };
 
   // Interconnecting paths for 4-node floorplan
@@ -21,6 +21,7 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
   ];
 
   const activePath = safestRoute?.path || ["NODE_A", "NODE_C", "NODE_D"];
+  const targetExitNode = safestRoute?.targetExit || "NODE_D";
 
   const isEdgeInRoute = (from, to) => {
     for (let i = 0; i < activePath.length - 1; i++) {
@@ -42,16 +43,16 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
       {/* Map Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-[#27272a]">
         <div className="flex items-center gap-2">
-          <div className="p-1 bg-[#121212] text-[#80ff72] border border-[#27272a]">
+          <div className="p-1 bg-[#121212] text-sky-400 border border-[#27272a]">
             <Navigation className="w-4 h-4" />
           </div>
           <div>
             <h2 className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
               $ 4-room-egress-map
-              <span className="text-[10px] text-[#80ff72] font-normal">[ NODE A, B, C, D ]</span>
+              <span className="text-[10px] text-sky-400 font-normal">[ NODE A, B, C, D ]</span>
             </h2>
             <p className="text-[11px] text-zinc-400">
-              Live Path Status: Neutral (Unchecked), Red (Blocked), Yellow (Caution), Green (Optimal Route)
+              Live Path Status: Neutral (Unchecked), Red (Blocked), Yellow (Caution), Sky Blue (Optimal Route)
             </p>
           </div>
         </div>
@@ -63,16 +64,16 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
             <span className="text-zinc-500">Unchecked</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-[#80ff72]" />
-            <span className="text-[#80ff72]">Safe</span>
+            <span className="w-2.5 h-2.5 bg-sky-400" />
+            <span className="text-sky-400">Safe</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-[#fbbf24]" />
-            <span className="text-[#fbbf24]">Caution</span>
+            <span className="w-2.5 h-2.5 bg-amber-400" />
+            <span className="text-amber-400">Caution</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-[#f87171]" />
-            <span className="text-[#f87171]">Blocked</span>
+            <span className="w-2.5 h-2.5 bg-red-400" />
+            <span className="text-red-400">Blocked</span>
           </div>
         </div>
       </div>
@@ -84,7 +85,7 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
         <div
           className="absolute inset-0 opacity-[0.04] pointer-events-none"
           style={{
-            backgroundImage: 'linear-gradient(to right, #80ff72 1px, transparent 1px), linear-gradient(to bottom, #80ff72 1px, transparent 1px)',
+            backgroundImage: 'linear-gradient(to right, #38bdf8 1px, transparent 1px), linear-gradient(to bottom, #38bdf8 1px, transparent 1px)',
             backgroundSize: '24px 24px'
           }}
         />
@@ -97,21 +98,25 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
             </filter>
           </defs>
 
-          {/* Architectural Floorplan Room Layout */}
+          {/* Architectural Floorplan Room Layout (All rooms styled cleanly without blue highlight) */}
           <g className="opacity-70 pointer-events-none">
             <rect x="50" y="30" width="580" height="400" rx="0" fill="#070707" stroke="#27272a" strokeWidth="2" />
 
+            {/* Room A */}
             <rect x="70" y="50" width="230" height="170" rx="0" fill="#0c0c0d" stroke="#27272a" strokeWidth="1" />
-            <text x="80" y="70" fill="#71717a" fontSize="10" fontWeight="bold">ROOM A (FIRE SENSOR)</text>
+            <text x="80" y="72" fill="#71717a" fontSize="10" fontWeight="bold">ROOM A</text>
 
+            {/* Room B */}
             <rect x="380" y="50" width="230" height="170" rx="0" fill="#0c0c0d" stroke="#27272a" strokeWidth="1" />
-            <text x="390" y="70" fill="#71717a" fontSize="10" fontWeight="bold">ROOM B (ULTRASONIC DEBRIS)</text>
+            <text x="390" y="72" fill="#71717a" fontSize="10" fontWeight="bold">ROOM B</text>
 
+            {/* Room C */}
             <rect x="70" y="240" width="230" height="170" rx="0" fill="#0c0c0d" stroke="#27272a" strokeWidth="1" />
-            <text x="80" y="260" fill="#71717a" fontSize="10" fontWeight="bold">ROOM C (CAUTION SECTOR)</text>
+            <text x="80" y="262" fill="#71717a" fontSize="10" fontWeight="bold">ROOM C</text>
 
-            <rect x="380" y="240" width="230" height="170" rx="0" fill="#091409" stroke="#4ade80" strokeWidth="1.5" />
-            <text x="390" y="260" fill="#80ff72" fontSize="10" fontWeight="bold">ROOM D (SAFE EXIT GATE)</text>
+            {/* Room D */}
+            <rect x="380" y="240" width="230" height="170" rx="0" fill="#0c0c0d" stroke="#27272a" strokeWidth="1" />
+            <text x="390" y="262" fill="#71717a" fontSize="10" fontWeight="bold">ROOM D</text>
           </g>
 
           {/* Connecting Paths Between 4 Nodes */}
@@ -126,7 +131,6 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
             const fromAcc = accessedNodes.has(conn.from);
             const toAcc = accessedNodes.has(conn.to);
 
-            // Path colors: if either connected node is unaccessed, render neutral dark gray
             let lineColor = "#27272a";
             if (fromAcc || toAcc) {
               const fromRisk = fromAcc ? fromData.riskInfo?.totalRisk || 0 : 0;
@@ -134,17 +138,16 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
               const maxRisk = Math.max(fromRisk, toRisk);
 
               if (maxRisk >= 60) {
-                lineColor = "#f87171"; // RED (Blocked / Hazard)
+                lineColor = "#f87171"; // RED
               } else if (maxRisk >= 30) {
-                lineColor = "#fbbf24"; // YELLOW (Caution)
+                lineColor = "#fbbf24"; // YELLOW
               } else {
-                lineColor = "#80ff72"; // GREEN (Safe)
+                lineColor = "#38bdf8"; // SKY BLUE
               }
             }
 
             return (
               <g key={conn.id}>
-                {/* Line */}
                 <line
                   x1={p1.x}
                   y1={p1.y}
@@ -155,8 +158,7 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
                   strokeOpacity={lineColor === "#27272a" ? 0.4 : isRoute ? 1 : 0.4}
                 />
 
-                {/* Flow Animation for active route if accessed */}
-                {isRoute && (fromAcc || toAcc) && lineColor === "#80ff72" && (
+                {isRoute && (fromAcc || toAcc) && lineColor === "#38bdf8" && (
                   <line
                     x1={p1.x}
                     y1={p1.y}
@@ -173,7 +175,7 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
             );
           })}
 
-          {/* 4 Interactive Nodes */}
+          {/* 4 Interactive Nodes & Contained Labels */}
           {Object.keys(nodePositions).map((nodeId) => {
             const pos = nodePositions[nodeId];
             const data = getNodeData(nodeId);
@@ -182,80 +184,78 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
             const level = isAccessed ? data.riskInfo?.level || 'SAFE' : 'UNCHECKED';
             const isSelected = selectedNodeId === nodeId;
             const isInRoute = activePath.includes(nodeId);
-            const isExitNode = nodeId === 'NODE_D';
 
             const statusColors = {
               CRITICAL: { fill: '#f87171', text: 'text-red-400' },
               WARNING: { fill: '#fbbf24', text: 'text-amber-400' },
-              SAFE: { fill: '#80ff72', text: 'text-[#80ff72]' },
+              SAFE: { fill: '#38bdf8', text: 'text-sky-400' },
               UNCHECKED: { fill: '#52525b', text: 'text-zinc-500' }
             };
 
             const colors = statusColors[level] || statusColors.UNCHECKED;
 
             return (
-              <g
-                key={nodeId}
-                transform={`translate(${pos.x}, ${pos.y})`}
-                onClick={() => onSelectNode(nodeId)}
-                className="cursor-pointer group"
-              >
-                {/* Selected Ring */}
-                {isSelected && (
-                  <circle
-                    r="26"
-                    fill="none"
-                    stroke={isAccessed ? "#80ff72" : "#71717a"}
-                    strokeWidth="2"
-                    strokeDasharray="4 3"
-                    className="animate-spin-slow"
-                  />
-                )}
-
-                {/* Route Ring */}
-                {isInRoute && !isSelected && isAccessed && (
-                  <circle
-                    r="22"
-                    fill="none"
-                    stroke="#4ade80"
-                    strokeWidth="1.5"
-                    strokeOpacity="0.8"
-                  />
-                )}
-
-                {/* Node Center Circle */}
-                <circle
-                  r={isExitNode ? 18 : 15}
-                  fill={isExitNode ? "#091409" : "#0d0d0e"}
-                  stroke={colors.fill}
-                  strokeWidth={isSelected ? 3 : 2}
-                  className="transition-all duration-200 group-hover:scale-110"
-                />
-
-                {/* Center Dot */}
-                <circle
-                  r="5"
-                  fill={colors.fill}
-                />
-
-                {/* Clean Label (No Pill or heavy box) */}
-                <foreignObject
-                  x={pos.x > 340 ? 22 : -135}
-                  y={-18}
-                  width="115"
-                  height="42"
-                  className="overflow-visible pointer-events-none"
+              <g key={nodeId}>
+                {/* Node Circle */}
+                <g
+                  transform={`translate(${pos.x}, ${pos.y})`}
+                  onClick={() => onSelectNode(nodeId)}
+                  className="cursor-pointer group"
                 >
-                  <div className="font-mono">
+                  {isSelected && (
+                    <circle
+                      r="24"
+                      fill="none"
+                      stroke={isAccessed ? "#38bdf8" : "#71717a"}
+                      strokeWidth="2"
+                      strokeDasharray="4 3"
+                      className="animate-spin-slow"
+                    />
+                  )}
+
+                  {isInRoute && !isSelected && isAccessed && (
+                    <circle
+                      r="20"
+                      fill="none"
+                      stroke="#38bdf8"
+                      strokeWidth="1.5"
+                      strokeOpacity="0.8"
+                    />
+                  )}
+
+                  <circle
+                    r="15"
+                    fill="#0d0d0e"
+                    stroke={colors.fill}
+                    strokeWidth={isSelected ? 3 : 2}
+                    className="transition-all duration-200 group-hover:scale-110"
+                  />
+
+                  <circle
+                    r="5"
+                    fill={colors.fill}
+                  />
+                </g>
+
+                {/* Node Text - Neatly placed inside room bounds */}
+                <foreignObject
+                  x={pos.labelX}
+                  y={pos.labelY}
+                  width="210"
+                  height="45"
+                  onClick={() => onSelectNode(nodeId)}
+                  className="cursor-pointer overflow-hidden pointer-events-auto"
+                >
+                  <div className="font-mono px-1">
                     <div className="flex items-center justify-between text-[11px] font-bold">
-                      <span className={isSelected ? 'text-white' : 'text-zinc-300'}>{nodeId}</span>
+                      <span className={isSelected ? 'text-white underline decoration-sky-400' : 'text-zinc-300'}>{nodeId}</span>
                       <span className={`text-[10px] ${colors.text}`}>
                         {isAccessed ? `${risk}%` : '[UNCHECKED]'}
                       </span>
                     </div>
                     {isAccessed && data.isSensor && (
-                      <div className="text-[9px] text-zinc-400 mt-0.5">
-                        {data.temperature}°C | {data.distance} cm
+                      <div className="text-[10px] text-zinc-400 mt-0.5">
+                        {data.temperature !== undefined ? `${data.temperature}°C` : '--'} | {data.distance !== undefined ? `${data.distance} cm` : '--'}
                       </div>
                     )}
                   </div>
@@ -269,10 +269,10 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
         <div className="absolute bottom-2.5 left-2.5 right-2.5 bg-[#0a0a0a] border border-[#27272a] px-3 py-2 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-2">
             <span className="text-zinc-500 uppercase text-[10px]">$ optimal-path:</span>
-            <div className="flex items-center gap-1.5 font-bold text-[#80ff72]">
+            <div className="flex items-center gap-1.5 font-bold text-sky-400">
               {activePath.map((node, i) => (
                 <React.Fragment key={i}>
-                  <span className={node === 'NODE_D' ? 'text-[#80ff72] underline font-extrabold' : 'text-zinc-200'}>
+                  <span className={node === targetExitNode ? 'text-sky-400 underline font-extrabold' : 'text-zinc-200'}>
                     {node}
                   </span>
                   {i < activePath.length - 1 && <span className="text-zinc-600 font-bold">→</span>}
@@ -281,14 +281,12 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-zinc-400 text-[11px]">
-            <div>
-              <span>Risk Cost: </span>
-              <span className="font-bold text-[#80ff72]">{safestRoute?.cost || 12} pts</span>
-            </div>
+          <div className="flex items-center gap-3 text-zinc-400 text-[11px]">
             <div>
               <span>Exit Gate: </span>
-              <span className="font-bold text-[#80ff72]">NODE_D (Room D Exit)</span>
+              <span className={`font-bold ${targetExitNode === 'NODE_D' ? 'text-sky-400' : 'text-amber-400 animate-pulse'}`}>
+                {targetExitNode} {targetExitNode !== 'NODE_D' ? '(Dynamic Exit Reroute)' : ''}
+              </span>
             </div>
           </div>
         </div>
@@ -297,6 +295,3 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
     </div>
   );
 }
-
-
-
