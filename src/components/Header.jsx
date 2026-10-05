@@ -93,29 +93,6 @@ export default function Header({
 
         {/* Controls & Actions */}
         <div className="flex items-center gap-2">
-          {/* USB Serial Quick Toggle */}
-          {webSerialState?.isSupported && (
-            webSerialState.isConnected ? (
-              <button
-                onClick={onDisconnectSerial}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold bg-emerald-950 text-emerald-300 border border-emerald-500/70 hover:bg-emerald-900 transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                title="Disconnect USB Hardware Node"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="hidden sm:inline">USB Node Live</span>
-              </button>
-            ) : (
-              <button
-                onClick={onConnectSerial}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-purple-950/70 text-purple-300 border border-purple-800/80 hover:bg-purple-900 transition-all flex items-center gap-1.5"
-                title="Direct USB Connection (ESP32/Arduino via COM port)"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                <span className="hidden sm:inline">Plug USB Node</span>
-              </button>
-            )
-          )}
-
           <button
             onClick={toggleLiveSimulation}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all ${
@@ -126,7 +103,7 @@ export default function Header({
             title="Toggle telemetry sync"
           >
             <Radio className={`w-3.5 h-3.5 ${isLiveUpdating ? 'text-cyan-400 animate-pulse' : 'text-slate-500'}`} />
-            <span className="hidden md:inline font-mono">{isLiveUpdating ? 'Wi-Fi Gateway' : 'Paused'}</span>
+            <span className="hidden md:inline font-mono">{isLiveUpdating ? 'Sync ON' : 'Paused'}</span>
           </button>
 
           <button
