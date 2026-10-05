@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, ShieldCheck, AlertTriangle, AlertOctagon, Radio, RotateCcw, BookOpen, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { HudButton } from '@/components/ui/hud-button';
 
 export default function Header({
@@ -22,46 +22,6 @@ export default function Header({
     return () => clearInterval(interval);
   }, []);
 
-  const nodes = systemState?.nodes || {};
-  
-  // Only evaluate risks for nodes that have been accessed by the user
-  const accessedNodesList = Object.values(nodes).filter(n => accessedNodes.has(n.id));
-  const criticalCount = accessedNodesList.filter(n => n.riskInfo?.level === 'CRITICAL').length;
-  const warningCount = accessedNodesList.filter(n => n.riskInfo?.level === 'WARNING').length;
-
-  let statusConfig;
-  if (accessedNodes.size === 0) {
-    statusConfig = {
-      label: 'SYSTEM INITIALIZED / SELECT NODE TO MONITOR LIVE TELEMETRY',
-      textColor: 'text-zinc-400',
-      dotColor: 'bg-zinc-500',
-      icon: Radio
-    };
-  } else if (criticalCount > 0) {
-    statusConfig = {
-      label: `CRITICAL HAZARD / ${criticalCount} NODE BLOCKED / EVACUATION REROUTED`,
-      textColor: 'text-red-400',
-      dotColor: 'bg-red-500',
-      icon: AlertOctagon
-    };
-  } else if (warningCount > 0) {
-    statusConfig = {
-      label: `WARNING / ${warningCount} SECTOR RESTRICTED / TRAFFIC MONITORED`,
-      textColor: 'text-amber-400',
-      dotColor: 'bg-amber-500',
-      icon: AlertTriangle
-    };
-  } else {
-    statusConfig = {
-      label: 'NOMINAL / ACCESSED SECTORS OPTIMAL',
-      textColor: 'text-sky-400',
-      dotColor: 'bg-sky-400',
-      icon: ShieldCheck
-    };
-  }
-
-  const StatusIcon = statusConfig.icon;
-
   return (
     <header className="bg-[#050505] border-b border-[#27272a] px-4 lg:px-6 py-2 sticky top-0 z-40 font-sans select-none">
       <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3 py-1">
@@ -81,16 +41,9 @@ export default function Header({
           </div>
         </div>
 
-        {/* Status Indicator */}
+        {/* Clock & Node Access Stats */}
         <div className="flex items-center gap-3">
-          <div className={`text-xs font-mono font-bold tracking-wide flex items-center gap-2 ${statusConfig.textColor}`}>
-            <span className={`w-2 h-2 rounded-full ${statusConfig.dotColor} animate-pulse`} />
-            <StatusIcon className="w-3.5 h-3.5 shrink-0" />
-            <span className="uppercase text-[11px]">{statusConfig.label}</span>
-          </div>
-
-          <div className="hidden xl:flex items-center gap-2 text-[11px] font-mono text-zinc-400">
-            <span className="text-zinc-700">|</span>
+          <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-400">
             <Clock className="w-3.5 h-3.5 text-sky-400" />
             <span className="text-sky-400 font-bold">{timeStr || '00:00:00'}</span>
             <span className="text-zinc-700">|</span>

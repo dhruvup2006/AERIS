@@ -49,7 +49,6 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
           <div>
             <h2 className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
               $ 4-room-egress-map
-              <span className="text-[10px] text-sky-400 font-normal">[ NODE A, B, C, D ]</span>
             </h2>
             <p className="text-[11px] text-zinc-400">
               Live Path Status: Neutral (Unchecked), Red (Blocked), Yellow (Caution), Sky Blue (Optimal Route)
@@ -98,7 +97,7 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
             </filter>
           </defs>
 
-          {/* Architectural Floorplan Room Layout (All rooms styled cleanly without blue highlight) */}
+          {/* Architectural Floorplan Room Layout */}
           <g className="opacity-70 pointer-events-none">
             <rect x="50" y="30" width="580" height="400" rx="0" fill="#070707" stroke="#27272a" strokeWidth="2" />
 
@@ -175,12 +174,11 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
             );
           })}
 
-          {/* 4 Interactive Nodes & Contained Labels */}
+          {/* 4 Interactive Nodes */}
           {Object.keys(nodePositions).map((nodeId) => {
             const pos = nodePositions[nodeId];
             const data = getNodeData(nodeId);
             const isAccessed = accessedNodes.has(nodeId);
-            const risk = isAccessed ? data.riskInfo?.totalRisk || 0 : 0;
             const level = isAccessed ? data.riskInfo?.level || 'SAFE' : 'UNCHECKED';
             const isSelected = selectedNodeId === nodeId;
             const isInRoute = activePath.includes(nodeId);
@@ -237,25 +235,23 @@ export default function BuildingMap({ nodes, accessedNodes = new Set(), safestRo
                   />
                 </g>
 
-                {/* Node Text - Neatly placed inside room bounds */}
+                {/* Node Telemetry Text - Neatly placed inside room bounds (No NODE_A/B/C/D header, No % text) */}
                 <foreignObject
                   x={pos.labelX}
                   y={pos.labelY}
                   width="210"
-                  height="45"
+                  height="30"
                   onClick={() => onSelectNode(nodeId)}
                   className="cursor-pointer overflow-hidden pointer-events-auto"
                 >
                   <div className="font-mono px-1">
-                    <div className="flex items-center justify-between text-[11px] font-bold">
-                      <span className={isSelected ? 'text-white underline decoration-sky-400' : 'text-zinc-300'}>{nodeId}</span>
-                      <span className={`text-[10px] ${colors.text}`}>
-                        {isAccessed ? `${risk}%` : '[UNCHECKED]'}
-                      </span>
-                    </div>
-                    {isAccessed && data.isSensor && (
-                      <div className="text-[10px] text-zinc-400 mt-0.5">
+                    {isAccessed && data.isSensor ? (
+                      <div className="text-[11px] text-zinc-300 font-medium">
                         {data.temperature !== undefined ? `${data.temperature}°C` : '--'} | {data.distance !== undefined ? `${data.distance} cm` : '--'}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-zinc-500 italic">
+                        [UNCHECKED]
                       </div>
                     )}
                   </div>

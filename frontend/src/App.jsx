@@ -191,17 +191,12 @@ export default function App() {
 
         {/* 3. Monospace Footer */}
         <footer className="bg-[#050505] border-t border-[#27272a] px-4 py-1.5 text-[11px] font-mono text-zinc-500 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-sky-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" /> / aeris-telemetry v1.1
-            </span>
-            <span className="hidden sm:inline text-zinc-700">|</span>
-            <span className="hidden sm:inline text-zinc-400">Dijkstra Dynamic Safe Evacuation Graph</span>
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            <span className="text-zinc-400">AERIS System Ready</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sky-400 font-bold">[ LIVE TELEMETRY FEED ]</span>
-            <span className="text-zinc-700">|</span>
-            <span className="text-zinc-400">Arduino / ESP32 Serial USB Bridge</span>
+            <span className="text-zinc-400">Hardware Serial Stream Active</span>
           </div>
         </footer>
 
