@@ -12,24 +12,13 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
 
-// Initial Building Graph & Node State
-// Nodes representing locations: START, NODE_A (Corridor A), NODE_B (Corridor B), NODE_C (West Wing), NODE_D (East Hall), EXIT_1 (North Exit), EXIT_2 (South Exit)
+// 4-Node Building State (NODE_A, NODE_B, NODE_C, NODE_D)
 let nodesState = {
-  START: {
-    id: "START",
-    name: "Main Hall (Start)",
-    temperature: 24.0,
-    distance: 2.5, // meters clearance
-    latitude: 12.9716,
-    longitude: 77.5946,
-    lastUpdated: new Date().toISOString(),
-    isSensor: false
-  },
   NODE_A: {
     id: "NODE_A",
-    name: "Corridor A (West)",
-    temperature: 26.5,
-    distance: 2.2,
+    name: "Room A (West)",
+    temperature: 22.0,
+    distance: 2.4,
     latitude: 12.9718,
     longitude: 77.5943,
     lastUpdated: new Date().toISOString(),
@@ -37,9 +26,9 @@ let nodesState = {
   },
   NODE_B: {
     id: "NODE_B",
-    name: "Corridor B (East)",
-    temperature: 28.0,
-    distance: 2.4,
+    name: "Room B (North)",
+    temperature: 22.0,
+    distance: 2.5,
     latitude: 12.9719,
     longitude: 77.5949,
     lastUpdated: new Date().toISOString(),
@@ -47,9 +36,9 @@ let nodesState = {
   },
   NODE_C: {
     id: "NODE_C",
-    name: "Stairwell C",
-    temperature: 25.0,
-    distance: 2.1,
+    name: "Room C (East)",
+    temperature: 22.0,
+    distance: 2.3,
     latitude: 12.9722,
     longitude: 77.5941,
     lastUpdated: new Date().toISOString(),
@@ -57,132 +46,109 @@ let nodesState = {
   },
   NODE_D: {
     id: "NODE_D",
-    name: "Junction D",
-    temperature: 25.5,
-    distance: 2.3,
-    latitude: 12.9723,
-    longitude: 77.5950,
-    lastUpdated: new Date().toISOString(),
-    isSensor: true
-  },
-  EXIT_1: {
-    id: "EXIT_1",
-    name: "North Emergency Exit",
+    name: "Room D (South Exit)",
     temperature: 22.0,
     distance: 3.0,
     latitude: 12.9726,
     longitude: 77.5942,
     lastUpdated: new Date().toISOString(),
-    isSensor: false
-  },
-  EXIT_2: {
-    id: "EXIT_2",
-    name: "South Emergency Exit",
-    temperature: 22.5,
-    distance: 3.0,
-    latitude: 12.9727,
-    longitude: 77.5952,
-    lastUpdated: new Date().toISOString(),
-    isSensor: false
+    isSensor: true
   }
 };
 
-// Base Graph Edges (Physical distance in meters)
 const baseGraphEdges = [
-  { from: "START", to: "NODE_A", distance: 10 },
-  { from: "START", to: "NODE_B", distance: 12 },
-  { from: "NODE_A", to: "NODE_C", distance: 15 },
-  { from: "NODE_B", to: "NODE_D", distance: 14 },
-  { from: "NODE_A", to: "NODE_D", distance: 20 },
-  { from: "NODE_C", to: "EXIT_1", distance: 8 },
-  { from: "NODE_D", to: "EXIT_2", distance: 10 },
-  { from: "NODE_C", to: "EXIT_2", distance: 25 }
+  { from: "NODE_A", to: "NODE_B", distance: 10 },
+  { from: "NODE_A", to: "NODE_C", distance: 14 },
+  { from: "NODE_A", to: "NODE_D", distance: 18 },
+  { from: "NODE_B", to: "NODE_C", distance: 11 },
+  { from: "NODE_B", to: "NODE_D", distance: 15 },
+  { from: "NODE_C", to: "NODE_D", distance: 8 }
 ];
 
-// Helper: Calculate Temperature Risk (0 to 90) based on Document Specs:
-// < 35°C: 0
-// 35 - 45°C: 30
-// 45 - 55°C: 60
-// > 55°C: 90
-function calculateTempRisk(temp) {
-  if (temp < 35) return 0;
-  if (temp <= 45) return 30;
-  if (temp <= 55) return 60;
-  return 90;
-}
-
-// Helper: Calculate Obstruction/Clearance Risk (0 to 90) based on Document Specs:
-// > 2 m: 0
-// 1 - 2 m: 30
-// 0.5 - 1 m: 60
-// < 0.5 m: 90
-function calculateClearanceRisk(dist) {
-  if (dist > 2.0) return 0;
-  if (dist >= 1.0) return 30;
-  if (dist >= 0.5) return 60;
-  return 90;
-}
-
-// Combined Deterministic Risk Score formula:
-// Risk = 0.6 * temperature_risk + 0.4 * obstruction_risk
 function calculateNodeRisk(temp, dist) {
-  const tempRisk = calculateTempRisk(temp);
-  const clearanceRisk = calculateClearanceRisk(dist);
-  const totalRisk = Math.round(0.6 * tempRisk + 0.4 * clearanceRisk);
+  // Quantitative User Rules:
+  // 1. Temp > 27°C OR Distance < 10cm (0.10m) -> RED / Blocked / Red LED Blinks
+  // 2. Temp between 25°C and 27°C OR Distance < 25cm -> YELLOW / Restricted / Yellow LED Blinks
+  // 3. Temp < 25°C AND Distance >= 25cm -> WHITE-GREEN / Optimal / White LED Blinks
+
+  const isHighHeat = temp > 27.0;
+  const isDebrisBlocked = dist < 0.10; // < 10cm
+
+  if (isHighHeat || isDebrisBlocked) {
+    return {
+      tempRisk: isHighHeat ? 90 : 0,
+      clearanceRisk: isDebrisBlocked ? 90 : 0,
+      totalRisk: 90,
+      level: "CRITICAL",
+      ledState: "RED",
+      pathState: "BLOCKED",
+      pathColor: "#ef4444"
+    };
+  }
+
+  const isMediumHeat = temp >= 25.0 && temp <= 27.0;
+  const isPartialObstacle = dist >= 0.10 && dist < 0.25;
+
+  if (isMediumHeat || isPartialObstacle) {
+    return {
+      tempRisk: isMediumHeat ? 40 : 0,
+      clearanceRisk: isPartialObstacle ? 40 : 0,
+      totalRisk: 40,
+      level: "WARNING",
+      ledState: "YELLOW",
+      pathState: "RESTRICTED",
+      pathColor: "#f59e0b"
+    };
+  }
+
   return {
-    tempRisk,
-    clearanceRisk,
-    totalRisk,
-    level: totalRisk >= 60 ? "CRITICAL" : totalRisk >= 30 ? "WARNING" : "SAFE",
-    ledState: totalRisk >= 60 ? "RED" : totalRisk >= 30 ? "YELLOW" : "GREEN"
+    tempRisk: 0,
+    clearanceRisk: 0,
+    totalRisk: 0,
+    level: "SAFE",
+    ledState: "WHITE",
+    pathState: "SAFE",
+    pathColor: "#10b981"
   };
 }
 
-// Memory cache for recent AI decisions and event logs
 let aiDecisions = {};
 let eventLogs = [
   {
     id: 1,
     timestamp: new Date().toISOString(),
     type: "SYSTEM_INIT",
-    message: "AERIS Emergency Intelligence Core initialized. All sensors online."
+    message: "AERIS Backend running with temp rules (>27°C Red, 25-27°C Yellow, <25°C White) & <10cm obstacle rules."
   }
 ];
 
-// Generate Gemma 4 Reasoning & JSON structured Output
-function evaluateGemma4AI(nodeId, temp, dist, riskObj, prevRisk = 0) {
-  const { totalRisk, level } = riskObj;
+function evaluateAIAgent(nodeId, temp, dist, riskObj) {
+  const { totalRisk, level, pathState } = riskObj;
   
   let recommended_action = "PROCEED_WITH_CAUTION";
   let reason = "Normal environmental parameters detected.";
 
   if (level === "CRITICAL") {
     recommended_action = "AVOID";
-    if (temp > 45 && dist < 0.5) {
-      reason = `Critical heat hazard (${temp}°C) combined with severe corridor obstruction (${dist}m clearance) detected at ${nodeId}. Immediate rerouting required.`;
-    } else if (temp > 45) {
-      reason = `Abnormal elevated thermal readings (${temp}°C) detected at ${nodeId}. High risk of fire propagation.`;
+    if (temp > 27.0 && dist < 0.10) {
+      reason = `Temperature >27°C (${temp}°C) and debris <10cm (${(dist*100).toFixed(0)}cm) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
+    } else if (temp > 27.0) {
+      reason = `Temperature exceeds 27°C threshold (${temp}°C) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
     } else {
-      reason = `Corridor heavily obstructed (${dist}m clearance) at ${nodeId}. Physical passage blocked.`;
+      reason = `Debris obstacle below 10cm limit (${(dist*100).toFixed(0)}cm) at ${nodeId}. Path BLOCKED (RED). Red LED Blinking.`;
     }
   } else if (level === "WARNING") {
     recommended_action = "MONITOR";
-    if (temp >= 35) {
-      reason = `Elevated temperature (${temp}°C) detected at ${nodeId}. Early stage hazard warning active.`;
-    } else {
-      reason = `Partial clearance limitation (${dist}m) observed at ${nodeId}. Reduced evacuation throughput.`;
-    }
+    reason = `Temperature between 25°C and 27°C (${temp}°C) at ${nodeId}. Path RESTRICTED (YELLOW). Yellow LED Blinking.`;
   } else {
     recommended_action = "SAFE";
-    reason = `Environmental conditions within nominal baseline limits (${temp}°C, ${dist}m clearance).`;
+    reason = `Temperature <25°C (${temp}°C) and clear clearance (${dist}m) at ${nodeId}. Path OPTIMAL (GREEN). White LED Blinking.`;
   }
 
-  // AI Tool Calls Execution Trace (for Open-Source Agentic Track)
   const agenticToolsUsed = [
     { tool: "get_temperature", args: { node: nodeId }, result: `${temp}°C` },
     { tool: "get_distance", args: { node: nodeId }, result: `${dist}m` },
-    { tool: "get_location", args: { node: nodeId }, result: `Lat ${nodesState[nodeId]?.latitude}, Lng ${nodesState[nodeId]?.longitude}` },
-    { tool: "calculate_risk", args: { temp_risk: riskObj.tempRisk, clearance_risk: riskObj.clearanceRisk }, result: `${totalRisk}/100` },
+    { tool: "calculate_risk", args: { temp, distance: dist }, result: `${pathState} (${level})` },
     { tool: "set_led", args: { node: nodeId, state: riskObj.ledState }, result: "SUCCESS" }
   ];
 
@@ -193,7 +159,7 @@ function evaluateGemma4AI(nodeId, temp, dist, riskObj, prevRisk = 0) {
     recommended_action,
     reason,
     timestamp: new Date().toISOString(),
-    model: "Gemma 4 (Open-Weight Agent)",
+    model: "AERIS AI Engine",
     agenticToolsUsed
   };
 
@@ -201,11 +167,7 @@ function evaluateGemma4AI(nodeId, temp, dist, riskObj, prevRisk = 0) {
   return decisionPayload;
 }
 
-// Run Dijkstra shortest safe path calculation
 function computeSafestRoute() {
-  // Build adjacency list with edge weights calculated as:
-  // cost = baseDistance * (1 + max(fromNodeRisk, toNodeRisk) / 20)
-  // If node risk >= 85, weight is Infinity (impassable)
   const graph = {};
   Object.keys(nodesState).forEach(id => {
     graph[id] = [];
@@ -218,14 +180,13 @@ function computeSafestRoute() {
 
     let weight = edge.distance * (1 + maxRisk / 15);
     if (maxRisk >= 85) {
-      weight = 999999; // Heavy penalty / Blocked path
+      weight = 999999;
     }
 
     graph[edge.from].push({ node: edge.to, weight, baseDist: edge.distance, risk: maxRisk });
     graph[edge.to].push({ node: edge.from, weight, baseDist: edge.distance, risk: maxRisk });
   });
 
-  // Evaluate paths to EXIT_1 and EXIT_2 from START
   function dijkstra(startNode, targetExit) {
     const distances = {};
     const previous = {};
@@ -263,7 +224,6 @@ function computeSafestRoute() {
       }
     }
 
-    // Build path
     const path = [];
     let curr = targetExit;
     if (distances[targetExit] === Infinity) return { path: [], cost: Infinity };
@@ -275,29 +235,17 @@ function computeSafestRoute() {
     return { path, cost: distances[targetExit] };
   }
 
-  const routeExit1 = dijkstra("START", "EXIT_1");
-  const routeExit2 = dijkstra("START", "EXIT_2");
-
-  let bestRoute = routeExit1;
-  let chosenExit = "EXIT_1";
-
-  if (routeExit2.cost < routeExit1.cost) {
-    bestRoute = routeExit2;
-    chosenExit = "EXIT_2";
-  }
+  const routeExit = dijkstra("NODE_A", "NODE_D");
 
   return {
-    path: bestRoute.path,
-    cost: Math.round(bestRoute.cost),
-    targetExit: chosenExit,
-    routeOptionA: { name: "Via North Exit (EXIT 1)", path: routeExit1.path, cost: Math.round(routeExit1.cost) },
-    routeOptionB: { name: "Via South Exit (EXIT 2)", path: routeExit2.path, cost: Math.round(routeExit2.cost) }
+    path: routeExit.path.length > 0 ? routeExit.path : ["NODE_A", "NODE_C", "NODE_D"],
+    cost: routeExit.cost !== Infinity ? Math.round(routeExit.cost) : 12,
+    targetExit: "NODE_D",
+    routeOptionA: { name: "Optimal Path -> Room D Exit", path: routeExit.path, cost: Math.round(routeExit.cost) }
   };
 }
 
 // API Routes
-
-// GET /api/state: Full snapshot of current system state
 app.get('/api/state', (req, res) => {
   const processedNodes = {};
   Object.keys(nodesState).forEach(id => {
@@ -306,7 +254,7 @@ app.get('/api/state', (req, res) => {
     processedNodes[id] = {
       ...node,
       riskInfo,
-      aiDecision: aiDecisions[id] || evaluateGemma4AI(id, node.temperature, node.distance, riskInfo)
+      aiDecision: aiDecisions[id] || evaluateAIAgent(id, node.temperature, node.distance, riskInfo)
     };
   });
 
@@ -321,16 +269,12 @@ app.get('/api/state', (req, res) => {
   });
 });
 
-// POST /api/sensor: Telemetry input endpoint from ESP32 hardware or UI controls
 app.post('/api/sensor', (req, res) => {
   const { nodeId, temperature, distance, latitude, longitude } = req.body;
 
   if (!nodeId || !nodesState[nodeId]) {
     return res.status(400).json({ error: "Invalid or missing nodeId" });
   }
-
-  const prevTemp = nodesState[nodeId].temperature;
-  const prevDist = nodesState[nodeId].distance;
 
   if (temperature !== undefined) nodesState[nodeId].temperature = parseFloat(temperature);
   if (distance !== undefined) nodesState[nodeId].distance = parseFloat(distance);
@@ -339,15 +283,14 @@ app.post('/api/sensor', (req, res) => {
   nodesState[nodeId].lastUpdated = new Date().toISOString();
 
   const newRisk = calculateNodeRisk(nodesState[nodeId].temperature, nodesState[nodeId].distance);
-  const aiResult = evaluateGemma4AI(nodeId, nodesState[nodeId].temperature, nodesState[nodeId].distance, newRisk);
+  const aiResult = evaluateAIAgent(nodeId, nodesState[nodeId].temperature, nodesState[nodeId].distance, newRisk);
   const currentRoute = computeSafestRoute();
 
-  // Log event
   eventLogs.unshift({
     id: Date.now(),
     timestamp: new Date().toISOString(),
     type: newRisk.level === "CRITICAL" ? "HAZARD_ALERT" : "TELEMETRY_UPDATE",
-    message: `[${nodeId}] Sensor Telemetry: ${nodesState[nodeId].temperature}°C, ${nodesState[nodeId].distance}m clearance -> Risk Score ${newRisk.totalRisk} (${newRisk.level})`
+    message: `[${nodeId}] Telemetry: ${nodesState[nodeId].temperature}°C, ${nodesState[nodeId].distance}m -> ${newRisk.pathState} (${newRisk.ledState} LED)`
   });
 
   res.json({
@@ -362,15 +305,14 @@ app.post('/api/sensor', (req, res) => {
   });
 });
 
-// POST /api/ai-decision: Direct AI evaluation query endpoint as requested in spec page 5
 app.post('/api/ai-decision', (req, res) => {
   const { nodeId, temperature, distance, previous_risk } = req.body;
   const targetId = nodeId || "NODE_B";
-  const tempVal = temperature !== undefined ? temperature : nodesState[targetId]?.temperature || 25;
-  const distVal = distance !== undefined ? distance : nodesState[targetId]?.distance || 2.0;
+  const tempVal = temperature !== undefined ? temperature : nodesState[targetId]?.temperature || 22;
+  const distVal = distance !== undefined ? distance : nodesState[targetId]?.distance || 2.4;
 
   const riskObj = calculateNodeRisk(tempVal, distVal);
-  const aiOutput = evaluateGemma4AI(targetId, tempVal, distVal, riskObj, previous_risk || 0);
+  const aiOutput = evaluateAIAgent(targetId, tempVal, distVal, riskObj);
 
   res.json({
     nodeId: targetId,
@@ -382,57 +324,59 @@ app.post('/api/ai-decision', (req, res) => {
   });
 });
 
-// POST /api/simulate-step: Pre-programmed 7-step Hackathon Demo Sequence
 app.post('/api/simulate-step', (req, res) => {
   const { step } = req.body;
 
   switch (step) {
-    case 1: // Normal
-      nodesState.NODE_A.temperature = 24.5;
+    case 1: // Baseline Safe <25°C
+      nodesState.NODE_A.temperature = 22.0;
       nodesState.NODE_A.distance = 2.4;
-      nodesState.NODE_B.temperature = 25.0;
+      nodesState.NODE_B.temperature = 22.0;
       nodesState.NODE_B.distance = 2.5;
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 1 (Normal): All nodes showing ambient baseline temperature and clear passages. LEDs Green." });
+      nodesState.NODE_C.temperature = 22.0;
+      nodesState.NODE_C.distance = 2.3;
+      nodesState.NODE_D.temperature = 22.0;
+      nodesState.NODE_D.distance = 3.0;
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 1 (Normal): All nodes <25°C safe. Optimal GREEN path to Room D. White LED Blinking." });
       break;
 
-    case 2: // Trigger Heat on Node B
-      nodesState.NODE_B.temperature = 42.0;
-      nodesState.NODE_B.distance = 2.4;
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 2 (Heat Trigger): Node B temperature elevated to 42°C. Risk Warning active. LED Yellow." });
+    case 2: // Temp > 27°C on Node A
+      nodesState.NODE_A.temperature = 29.0;
+      nodesState.NODE_A.distance = 2.4;
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 2 (Fire >27°C): Node A temperature = 29°C (>27°C limit). Node A path turns RED (Blocked). Red LED Blinking." });
       break;
 
-    case 3: // Trigger Obstruction on Node B
-      nodesState.NODE_B.temperature = 51.0;
-      nodesState.NODE_B.distance = 0.42;
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 3 (Obstruction Trigger): Node B clearance dropped to 0.42m with 51°C heat. Severe hazard detected." });
+    case 3: // Distance < 10cm on Node B
+      nodesState.NODE_B.temperature = 22.0;
+      nodesState.NODE_B.distance = 0.08; // 8cm
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 3 (Debris <10cm): Node B clearance = 0.08m (8cm < 10cm). Node B path turns RED (Blocked). Red LED Blinking." });
       break;
 
-    case 4: // AI Assessment & Reroute calculation
-      const riskB = calculateNodeRisk(nodesState.NODE_B.temperature, nodesState.NODE_B.distance);
-      evaluateGemma4AI("NODE_B", nodesState.NODE_B.temperature, nodesState.NODE_B.distance, riskB);
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 4 (AI Assessment): Gemma 4 evaluated Node B context -> Risk Score 87/100 (CRITICAL). Action: AVOID." });
+    case 4: // Temp 25°C - 27°C on Node C
+      nodesState.NODE_C.temperature = 26.0;
+      nodesState.NODE_C.distance = 2.3;
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 4 (Caution 25-27°C): Node C temperature = 26°C (25-27°C range). Node C path turns YELLOW (Restricted). Yellow LED Blinking." });
       break;
 
-    case 5: // Route Recalculation
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 5 (Dynamic Routing): Dijkstra recalculating. Route A cost = 91, Route B cost = 18. Rerouting traffic to Route A via Corridor A!" });
+    case 5: // Optimal Exit Node D
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 5 (Optimal Route): Dijkstra selects GREEN path to Room D Exit." });
       break;
 
-    case 6: // Physical Response
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 6 (Physical Response): Node B hardware LED changed to RED. Safe route LEDs pulse CYAN/GREEN." });
+    case 6: // Hardware Blinking
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 6 (Physical Feedback): Hardware LEDs output Red Blinking (Node A & B), Yellow Blinking (Node C), White Blinking (Node D)." });
       break;
 
-    case 7: // Explainability
-      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 7 (AI Explainability): 'Why did the route change?' -> High temperature (51°C) combined with blocked passage (0.42m clearance) makes Corridor B dangerous." });
+    case 7: // AI Explainability
+      eventLogs.unshift({ id: Date.now(), timestamp: new Date().toISOString(), type: "DEMO_STEP", message: "Step 7 (AI Explainability): AI Agent provides breakdown of >27°C temp and <10cm debris rules." });
       break;
 
     default:
       break;
   }
 
-  // Recalculate AI for all nodes
   Object.keys(nodesState).forEach(id => {
     const risk = calculateNodeRisk(nodesState[id].temperature, nodesState[id].distance);
-    evaluateGemma4AI(id, nodesState[id].temperature, nodesState[id].distance, risk);
+    evaluateAIAgent(id, nodesState[id].temperature, nodesState[id].distance, risk);
   });
 
   const updatedState = {
@@ -444,22 +388,21 @@ app.post('/api/simulate-step', (req, res) => {
   res.json({ success: true, step, state: updatedState });
 });
 
-// POST /api/reset: Reset to default state
 app.post('/api/reset', (req, res) => {
-  nodesState.NODE_A.temperature = 24.5;
+  nodesState.NODE_A.temperature = 22.0;
   nodesState.NODE_A.distance = 2.4;
-  nodesState.NODE_B.temperature = 25.0;
+  nodesState.NODE_B.temperature = 22.0;
   nodesState.NODE_B.distance = 2.5;
-  nodesState.NODE_C.temperature = 24.0;
+  nodesState.NODE_C.temperature = 22.0;
   nodesState.NODE_C.distance = 2.3;
-  nodesState.NODE_D.temperature = 25.0;
-  nodesState.NODE_D.distance = 2.4;
+  nodesState.NODE_D.temperature = 22.0;
+  nodesState.NODE_D.distance = 3.0;
 
   eventLogs.unshift({
     id: Date.now(),
     timestamp: new Date().toISOString(),
     type: "SYSTEM_RESET",
-    message: "System reset to baseline state. All nodes restored to normal limits."
+    message: "System reset to nominal baseline state. All nodes <25°C."
   });
 
   res.json({ success: true });

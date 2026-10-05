@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cpu, Sparkles, Terminal, Code2, Send, CheckCircle2, ShieldAlert, Wrench, MessageSquare } from 'lucide-react';
+import { Cpu, Sparkles, Code2, Send, Wrench, MessageSquare } from 'lucide-react';
 
 export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
   const [userQuery, setUserQuery] = useState('');
@@ -10,7 +10,7 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
     },
     {
       sender: 'ai',
-      text: 'Recommend using Route A via Corridor A -> Stairwell C -> North Emergency Exit (EXIT 1). Corridor B (Node B) has registered critical heat (51°C) and structural obstruction (0.42m clearance).'
+      text: 'Recommend using Route via Corridor A (NODE_A) -> Stairwell C (NODE_C) -> Main Exit Gate E (NODE_E). Corridor B (NODE_B) has registered critical heat (51°C) and structural obstruction (0.42m clearance).'
     }
   ]);
   const [activeSubTab, setActiveSubTab] = useState('json');
@@ -21,7 +21,7 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
     risk_score: 87,
     recommended_action: 'AVOID',
     reason: 'High temperature combined with a blocked passage makes this route unsafe.',
-    model: 'Gemma 4 (Open-Weight Agent)',
+    model: 'AERIS AI Engine',
     agenticToolsUsed: [
       { tool: 'get_temperature', args: { node: selectedNode.id || 'NODE_B' }, result: `${selectedNode.temperature || 51}°C` },
       { tool: 'get_distance', args: { node: selectedNode.id || 'NODE_B' }, result: `${selectedNode.distance || 0.42}m` },
@@ -37,18 +37,17 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
     const q = userQuery;
     const newChat = [...aiChatHistory, { sender: 'user', text: q }];
 
-    // Generate intelligent AI response based on query keywords
     let reply = '';
     const qLower = q.toLowerCase();
 
     if (qLower.includes('why') || qLower.includes('change') || qLower.includes('reason')) {
-      reply = `Route calculation adjusted because ${selectedNode.name || 'Node B'} risk score hit ${selectedNode.riskInfo?.totalRisk || 87}/100. Environmental thermal reading is ${selectedNode.temperature}°C with clearance of ${selectedNode.distance}m. Gemma 4 marked this corridor as AVOID, redirecting path cost from 91 -> 18.`;
+      reply = `Route calculation adjusted because ${selectedNode.name || 'Node B'} risk score hit ${selectedNode.riskInfo?.totalRisk || 87}/100. Environmental thermal reading is ${selectedNode.temperature}°C with clearance of ${selectedNode.distance}m. AI Agent marked this corridor as AVOID.`;
     } else if (qLower.includes('safe') || qLower.includes('exit') || qLower.includes('where')) {
-      reply = `The safest active exit path is: ${safestRoute?.path?.join(' → ') || 'START → NODE_A → NODE_C → EXIT_1'}. Total hazard risk cost is only ${safestRoute?.cost || 18} pts.`;
+      reply = `The safest active exit path is: ${safestRoute?.path?.join(' → ') || 'NODE_A → NODE_C → NODE_E'}. Total hazard risk cost is only ${safestRoute?.cost || 18} pts.`;
     } else if (qLower.includes('led') || qLower.includes('hardware')) {
       reply = `Hardware status LEDs: ${selectedNode.id} is set to ${selectedNode.riskInfo?.ledState || 'RED'} (Risk ${selectedNode.riskInfo?.totalRisk || 87}). Clear evacuation path nodes are displaying GREEN signals.`;
     } else {
-      reply = `Gemma 4 Evaluation Context: Node ${selectedNode.id} risk level is ${selectedNode.riskInfo?.level || 'CRITICAL'}. Recommended Action: ${aiDecision.recommended_action}. Reason: ${aiDecision.reason}`;
+      reply = `AI Evaluation Context: Node ${selectedNode.id} risk level is ${selectedNode.riskInfo?.level || 'CRITICAL'}. Recommended Action: ${aiDecision.recommended_action}. Reason: ${aiDecision.reason}`;
     }
 
     setAiChatHistory([...newChat, { sender: 'ai', text: reply }]);
@@ -56,29 +55,29 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-6 flex flex-col h-full">
+    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 flex flex-col h-full font-mono">
       {/* Top Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-800 pb-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/40">
+          <div className="p-1.5 rounded bg-slate-800 text-cyan-400 border border-slate-700">
             <Cpu className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              Gemma 4 AI Reasoning & Open Agent Inspector
+            <h2 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+              AERIS AI Risk Inspector
             </h2>
-            <p className="text-xs text-slate-400">
-              Structured JSON Schema Output & Tool Calling Agent Execution
+            <p className="text-[11px] text-slate-400">
+              Structured JSON Schema Output & Autonomous Tool Calling Trace
             </p>
           </div>
         </div>
 
         {/* Subtab Toggle */}
-        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1 bg-slate-950 p-1 border border-slate-800 text-xs">
           <button
             onClick={() => setActiveSubTab('json')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-              activeSubTab === 'json' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 transition-all ${
+              activeSubTab === 'json' ? 'bg-slate-800 text-cyan-300 border border-slate-700' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Code2 className="w-3.5 h-3.5 inline mr-1" /> JSON Schema
@@ -86,17 +85,17 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
 
           <button
             onClick={() => setActiveSubTab('tools')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-              activeSubTab === 'tools' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 transition-all ${
+              activeSubTab === 'tools' ? 'bg-slate-800 text-cyan-300 border border-slate-700' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Wrench className="w-3.5 h-3.5 inline mr-1" /> Agent Tools Trace
+            <Wrench className="w-3.5 h-3.5 inline mr-1" /> Agent Tools
           </button>
 
           <button
             onClick={() => setActiveSubTab('chat')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-              activeSubTab === 'chat' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 transition-all ${
+              activeSubTab === 'chat' ? 'bg-slate-800 text-cyan-300 border border-slate-700' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5 inline mr-1" /> Explainability Query
@@ -105,17 +104,17 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
       </div>
 
       {/* Target Node Indicator */}
-      <div className="mb-4 bg-slate-900/60 rounded-xl p-3 border border-slate-800 flex items-center justify-between text-xs">
+      <div className="mb-4 bg-slate-950 p-2.5 border border-slate-800 flex items-center justify-between text-xs">
         <div className="flex items-center gap-2">
           <span className="text-slate-400">Inspecting Node:</span>
-          <span className="font-bold text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+          <span className="font-bold text-white bg-slate-900 px-2 py-0.5 border border-slate-800">
             {selectedNode.name || 'Corridor B'} ({selectedNode.id || 'NODE_B'})
           </span>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-slate-400">Risk Score: <strong className="text-purple-300">{selectedNode.riskInfo?.totalRisk || 87}/100</strong></span>
-          <span className="px-2 py-0.5 rounded font-bold bg-purple-950 text-purple-300 border border-purple-800 uppercase">
+          <span className="text-slate-400">Risk Score: <strong className="text-cyan-300">{selectedNode.riskInfo?.totalRisk || 87}/100</strong></span>
+          <span className="px-2 py-0.5 font-bold border border-slate-800 text-slate-200 uppercase">
             {selectedNode.riskInfo?.level || 'CRITICAL'}
           </span>
         </div>
@@ -126,9 +125,9 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
 
         {/* Tab 1: Strict JSON Output */}
         {activeSubTab === 'json' && (
-          <div className="space-y-4">
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-purple-300 overflow-x-auto relative">
-              <span className="absolute top-2 right-3 text-[10px] text-slate-500 font-sans">
+          <div className="space-y-3">
+            <div className="bg-slate-950 p-4 border border-slate-800 text-xs text-cyan-300 overflow-x-auto relative">
+              <span className="absolute top-2 right-3 text-[10px] text-slate-500 uppercase">
                 application/json
               </span>
               <pre>{JSON.stringify({
@@ -142,37 +141,28 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
                 timestamp: aiDecision.timestamp || new Date().toISOString()
               }, null, 2)}</pre>
             </div>
-
-            <div className="bg-purple-950/20 border border-purple-800/60 rounded-xl p-4 text-xs text-purple-200">
-              <h4 className="font-bold text-purple-300 mb-1 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4" /> Why Structured Output?
-              </h4>
-              <p className="text-purple-300/80 leading-relaxed">
-                By enforcing strict JSON schema responses from Gemma 4, the backend software can deterministically consume recommendations, update the graph edge costs, and drive physical RGB LED hardware outputs without unstructured text parsing errors.
-              </p>
-            </div>
           </div>
         )}
 
-        {/* Tab 2: Agent Tool Execution Trace (Open-Source Track) */}
+        {/* Tab 2: Agent Tool Trace */}
         {activeSubTab === 'tools' && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <p className="text-xs text-slate-400 mb-2">
-              For the <strong>Best Open-Source AI Project Track</strong>, Gemma 4 operates as an autonomous agent executing system tools to inspect environment state and trigger actions:
+              Autonomous agent tool execution trace:
             </p>
 
             {(aiDecision.agenticToolsUsed || []).map((t, idx) => (
-              <div key={idx} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between text-xs font-mono">
+              <div key={idx} className="bg-slate-950 p-2.5 border border-slate-800 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-purple-950 text-purple-400 flex items-center justify-center font-bold text-[10px] border border-purple-800">
+                  <span className="w-5 h-5 bg-slate-900 text-cyan-400 flex items-center justify-center font-bold text-[10px] border border-slate-800">
                     {idx + 1}
                   </span>
-                  <span className="text-purple-300 font-bold">{t.tool}</span>
+                  <span className="text-cyan-300 font-bold">{t.tool}</span>
                   <span className="text-slate-500">({JSON.stringify(t.args)})</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-slate-400">Result:</span>
-                  <span className="text-emerald-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                  <span className="text-emerald-400 font-bold bg-slate-900 px-2 py-0.5 border border-slate-800">
                     {t.result}
                   </span>
                 </div>
@@ -181,7 +171,7 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
           </div>
         )}
 
-        {/* Tab 3: Interactive Explainability Chatbot */}
+        {/* Tab 3: Explainability Chatbot */}
         {activeSubTab === 'chat' && (
           <div className="flex flex-col h-full space-y-3">
             <div className="flex-1 space-y-3 overflow-y-auto pr-1 min-h-[200px]">
@@ -191,15 +181,15 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
                   className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] p-3 rounded-xl text-xs leading-relaxed ${
+                    className={`max-w-[85%] p-2.5 text-xs leading-relaxed border ${
                       msg.sender === 'user'
-                        ? 'bg-cyan-600 text-white rounded-br-none'
-                        : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-bl-none'
+                        ? 'bg-slate-900 text-cyan-200 border-slate-700'
+                        : 'bg-slate-950 text-slate-200 border-slate-800'
                     }`}
                   >
                     {msg.sender === 'ai' && (
-                      <div className="font-bold text-purple-300 mb-1 text-[10px] flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> Gemma 4 Agent Response:
+                      <div className="font-bold text-cyan-400 mb-1 text-[10px] flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> AI Reasoning:
                       </div>
                     )}
                     {msg.text}
@@ -211,14 +201,14 @@ export default function AiInspector({ nodes, selectedNodeId, safestRoute }) {
             <form onSubmit={handleSendQuery} className="flex items-center gap-2 pt-2 border-t border-slate-800">
               <input
                 type="text"
-                placeholder="Ask Gemma 4: 'Why did the route change?' or 'Is Exit 1 safe?'..."
+                placeholder="Ask AI: 'Why did the route change?' or 'Is Exit safe?'..."
                 value={userQuery}
                 onChange={(e) => setUserQuery(e.target.value)}
-                className="flex-1 bg-slate-900 text-xs text-white px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-purple-500"
+                className="flex-1 bg-slate-950 text-xs text-white px-3 py-2 border border-slate-800 focus:outline-none focus:border-cyan-500 font-mono"
               />
               <button
                 type="submit"
-                className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all"
               >
                 <Send className="w-3.5 h-3.5" /> Ask
               </button>

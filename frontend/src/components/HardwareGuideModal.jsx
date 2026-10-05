@@ -1,106 +1,108 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, Cpu, Zap, Wifi, Radio, HardDrive } from 'lucide-react';
+import { X, Copy, Check, Cpu, Zap, Radio } from 'lucide-react';
 
 export default function HardwareGuideModal({ isOpen, onClose }) {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
-  const arduinoCode = `// AERIS ESP32 Sensor Node Firmware
-// Sends real-time telemetry to AERIS Web App backend over HTTP POST JSON
+  const arduinoCode = `// AERIS Arduino UNO + DHT11 Firmware (Matched to Web App)
+// Pin 2: DHT11 Data | Pin 9: Trig | Pin 10: Echo
+// Pin 4: White LED (Safe) | Pin 5: Yellow LED (Warning) | Pin 6: Red LED (Hazard)
 
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
+#include <DHT.h>
 
-// Wi-Fi Credentials
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+#define DHTPIN 2
+#define DHTTYPE DHT11
 
-// Backend API URL (Replace with your Laptop IP running AERIS server)
-const char* serverUrl = "http://192.168.1.100:3001/api/sensor";
+#define TRIG_PIN 9
+#define ECHO_PIN 10
 
-// Hardware Pin Definitions
-#define TRIGGER_PIN 5   // Ultrasonic HC-SR04 Trigger
-#define ECHO_PIN 18     // Ultrasonic HC-SR04 Echo
-#define TEMP_PIN 34     // Analog / OneWire Temp Sensor
-#define LED_RED_PIN 15  // Red LED
-#define LED_YEL_PIN 2   // Yellow LED
-#define LED_GRN_PIN 4   // Green LED
+#define LED_WHITE 4  // White/Green LED (Safe / Optimal Path)
+#define LED_YELLOW 5 // Yellow LED (Warning / Caution)
+#define LED_RED 6    // Red LED (High Hazard / Blocked)
 
-const char* NODE_ID = "NODE_B";
+DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
-  Serial.begin(115200);
-  pinMode(TRIGGER_PIN, OUTPUT);
+  Serial.begin(9600); // 9600 Baud Rate
+  dht.begin();
+
+  pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-  pinMode(LED_RED_PIN, OUTPUT);
-  pinMode(LED_YEL_PIN, OUTPUT);
-  pinMode(LED_GRN_PIN, OUTPUT);
 
-  // Connect Wi-Fi
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to Wi-Fi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\\nConnected! IP: " + WiFi.localIP().toString());
-}
-
-float measureDistance() {
-  digitalWrite(TRIGGER_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIGGER_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIGGER_PIN, LOW);
-  long duration = pulseIn(ECHO_PIN, HIGH);
-  float distanceMeters = (duration * 0.0343 / 2) / 100.0;
-  return distanceMeters;
-}
-
-float readTemperature() {
-  // Read analog temperature sensor value (or DHT11/DS18B20 library)
-  int rawVal = analogRead(TEMP_PIN);
-  float tempC = (rawVal / 4095.0) * 100.0;
-  return tempC;
-}
-
-void updateLEDs(String ledState) {
-  digitalWrite(LED_RED_PIN, ledState == "RED" ? HIGH : LOW);
-  digitalWrite(LED_YEL_PIN, ledState == "YELLOW" ? HIGH : LOW);
-  digitalWrite(LED_GRN_PIN, ledState == "GREEN" ? HIGH : LOW);
+  pinMode(LED_WHITE, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
 }
 
 void loop() {
-  if (WiFi.status() == WL_CONNECTED) {
-    float temp = readTemperature();
-    float dist = measureDistance();
+  // 1. Read ultrasonic distance in centimeters
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  float distanceCm = duration * 0.034 / 2.0;
 
-    HTTPClient http;
-    http.begin(serverUrl);
-    http.addHeader("Content-Type", "application/json");
-
-    StaticJsonDocument<200> doc;
-    doc["nodeId"] = NODE_ID;
-    doc["temperature"] = temp;
-    doc["distance"] = dist;
-
-    String jsonString;
-    serializeJson(doc, jsonString);
-
-    int httpResponseCode = http.POST(jsonString);
-    if (httpResponseCode > 0) {
-      String response = http.getString();
-      Serial.println("Telemetry Response: " + response);
-      // Parse returned LED status if applicable
-    } else {
-      Serial.println("Error sending POST: " + String(httpResponseCode));
-    }
-    http.end();
+  // 2. Read temperature in Celsius
+  float temperature = dht.readTemperature();
+  if (isnan(temperature)) {
+    temperature = 21.0; // Fallback if sensor initializing
   }
 
-  delay(2000); // Poll every 2 seconds
+  // 3. Determine Risk Condition & Dynamic Node Assignment
+  bool blinkRed = false;
+  bool blinkYellow = false;
+  bool blinkWhite = false;
+  String simulatedNode = "D"; // Defaults to safe exit node
+
+  // Priority 1: High Heat (Node A)
+  if (temperature > 35.0) {
+    blinkRed = true;
+    simulatedNode = "A";
+  } 
+  // Priority 2: Debris Blockage (Node B)
+  else if (distanceCm < 10.0) {
+    blinkRed = true;
+    simulatedNode = "B";
+  } 
+  // Priority 3: Elevated Temperature Warning (Node C)
+  else if (temperature >= 30.0 && temperature <= 35.0) {
+    blinkYellow = true;
+    simulatedNode = "C";
+  } 
+  // All Clear / Default (Node D)
+  else {
+    blinkWhite = true;
+    simulatedNode = "D";
+  }
+
+  // 4. Send JSON to USB Serial Bridge (9600 baud)
+  Serial.print("{\"nodeId\":\"");
+  Serial.print(simulatedNode);
+  Serial.print("\",\"temperature\":");
+  Serial.print(temperature, 1);
+  Serial.print(",\"distance\":");
+  Serial.print(distanceCm / 100.0, 2); // Sent as meters
+  Serial.print(",\"timestamp\":");
+  Serial.print(millis() / 1000);
+  Serial.println("}");
+
+  // 5. Blinking Execution (500ms ON, 500ms OFF)
+  if (blinkRed) digitalWrite(LED_RED, HIGH);
+  if (blinkYellow) digitalWrite(LED_YELLOW, HIGH);
+  if (blinkWhite) digitalWrite(LED_WHITE, HIGH);
+
+  delay(500); 
+
+  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_YELLOW, LOW);
+  digitalWrite(LED_WHITE, LOW);
+
+  delay(500); 
 }
 `;
 
@@ -111,7 +113,7 @@ void loop() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md font-mono">
       <div className="glass-panel w-full max-w-4xl max-h-[90vh] rounded-2xl flex flex-col overflow-hidden border border-slate-700 shadow-2xl">
         
         {/* Header */}
@@ -121,8 +123,8 @@ void loop() {
               <Cpu className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">ESP32 Hardware & Circuit Wiring Guide</h2>
-              <p className="text-xs text-slate-400">Microcontroller connections & ready-to-flash Arduino C++ firmware</p>
+              <h2 className="text-lg font-bold text-white">Arduino Hardware Wiring & Serial Bridge Guide</h2>
+              <p className="text-xs text-slate-400">9600 Baud Rate Serial Stream & Dynamic Node Assignment (A, B, C, D)</p>
             </div>
           </div>
 
@@ -137,43 +139,29 @@ void loop() {
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-300">
           
-          {/* Circuit Wiring Table */}
-          <div>
-            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+          {/* Rules Summary */}
+          <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl space-y-2">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400" />
-              ESP32 Pin Connection Table
+              Dynamic Arduino Node Assignment Logic
             </h3>
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
-              <table className="w-full text-left font-mono">
-                <thead className="bg-slate-900 text-slate-400 border-b border-slate-800">
-                  <tr>
-                    <th className="p-2.5">Component</th>
-                    <th className="p-2.5">ESP32 Pin</th>
-                    <th className="p-2.5">Signal / Role</th>
-                    <th className="p-2.5">Priority</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  <tr>
-                    <td className="p-2.5 font-bold text-rose-300">Temperature Sensor</td>
-                    <td className="p-2.5 text-cyan-300">GPIO 34 (Analog / OneWire)</td>
-                    <td className="p-2.5">Environmental Heat Detection</td>
-                    <td className="p-2.5 text-emerald-400 font-bold">Essential</td>
-                  </tr>
-                  <tr>
-                    <td className="p-2.5 font-bold text-cyan-300">Ultrasonic Sensor (HC-SR04)</td>
-                    <td className="p-2.5 text-cyan-300">Trigger: GPIO 5 | Echo: GPIO 18</td>
-                    <td className="p-2.5">Measure clearance / corridor blockage</td>
-                    <td className="p-2.5 text-emerald-400 font-bold">Essential</td>
-                  </tr>
-                  <tr>
-                    <td className="p-2.5 font-bold text-emerald-300">Status LEDs (RGB)</td>
-                    <td className="p-2.5 text-cyan-300">Red: GPIO 15 | Yel: GPIO 2 | Grn: GPIO 4</td>
-                    <td className="p-2.5">Physical safety indicator (Green/Yellow/Red)</td>
-                    <td className="p-2.5 text-emerald-400 font-bold">Essential</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-[11px]">
+              <div className="p-2 bg-slate-900 border border-red-500/40 text-red-300">
+                <strong>Node A (High Heat):</strong><br/>
+                Temp &gt; 35°C (Red LED Pin 6)
+              </div>
+              <div className="p-2 bg-slate-900 border border-red-500/40 text-red-300">
+                <strong>Node B (Debris):</strong><br/>
+                Distance &lt; 10cm (Red LED Pin 6)
+              </div>
+              <div className="p-2 bg-slate-900 border border-amber-500/40 text-amber-300">
+                <strong>Node C (Caution):</strong><br/>
+                Temp 30°C – 35°C (Yellow Pin 5)
+              </div>
+              <div className="p-2 bg-slate-900 border border-emerald-500/40 text-emerald-300">
+                <strong>Node D (Safe Exit):</strong><br/>
+                All Clear (White LED Pin 4)
+              </div>
             </div>
           </div>
 
@@ -182,18 +170,18 @@ void loop() {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Radio className="w-4 h-4 text-cyan-400" />
-                Arduino C++ Firmware (`aeris_esp32_firmware.ino`)
+                Arduino C++ Code (`aeris_arduino_dynamic.ino`)
               </h3>
               <button
                 onClick={copyToClipboard}
                 className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold flex items-center gap-1.5 transition-all text-xs"
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copied Code!' : 'Copy C++ Code'}
+                {copied ? 'Copied Code!' : 'Copy Arduino Code'}
               </button>
             </div>
 
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-[11px] text-cyan-200 overflow-x-auto max-h-[280px]">
+            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-[11px] text-cyan-200 overflow-x-auto max-h-[280px]">
               <pre>{arduinoCode}</pre>
             </div>
           </div>

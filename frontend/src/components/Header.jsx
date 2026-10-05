@@ -23,50 +23,49 @@ export default function Header({
   const nodes = systemState?.nodes || {};
   const criticalCount = Object.values(nodes).filter(n => n.riskInfo?.level === 'CRITICAL').length;
   const warningCount = Object.values(nodes).filter(n => n.riskInfo?.level === 'WARNING').length;
-  const totalSensors = Object.values(nodes).filter(n => n.isSensor).length;
+  const totalSensors = Object.values(nodes).length;
 
   const statusConfig = criticalCount > 0
     ? {
         label: `CRITICAL HAZARD [${criticalCount} ACTIVE] — EVACUATION REROUTED`,
-        bgColor: 'bg-red-500/15 border-red-500/60 text-red-400',
-        dotColor: 'bg-red-500 shadow-[0_0_12px_#ef4444]',
+        borderColor: 'border-red-500/60 text-red-400',
+        dotColor: 'bg-red-500',
         icon: AlertOctagon
       }
     : warningCount > 0
     ? {
         label: `HAZARD WARNING [${warningCount} SECTOR] — TRAFFIC MONITORED`,
-        bgColor: 'bg-amber-500/15 border-amber-500/60 text-amber-400',
-        dotColor: 'bg-amber-500 shadow-[0_0_10px_#f59e0b]',
+        borderColor: 'border-amber-500/60 text-amber-400',
+        dotColor: 'bg-amber-500',
         icon: AlertTriangle
       }
     : {
         label: 'ALL SECTORS SECURE — BASELINE NOMINAL',
-        bgColor: 'bg-emerald-500/15 border-emerald-500/60 text-emerald-400',
-        dotColor: 'bg-emerald-500 shadow-[0_0_10px_#10b981]',
+        borderColor: 'border-emerald-500/50 text-emerald-400',
+        dotColor: 'bg-emerald-500',
         icon: ShieldCheck
       };
 
   const StatusIcon = statusConfig.icon;
 
   return (
-    <header className="bg-slate-950/90 border-b border-slate-800/80 px-4 lg:px-6 py-2.5 sticky top-0 z-40 backdrop-blur-xl">
+    <header className="bg-slate-950 border-b border-slate-800/80 px-4 lg:px-6 py-2.5 sticky top-0 z-40 backdrop-blur-xl">
       <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
         
         {/* Brand identity */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-600/30 to-blue-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-            <Activity className="w-5 h-5 animate-pulse" />
+          <div className="w-8 h-8 bg-slate-900 border border-slate-700 rounded-md flex items-center justify-center text-cyan-400">
+            <Activity className="w-4 h-4 animate-pulse" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <h1 className="text-base font-extrabold tracking-wider text-white">
                 AERIS <span className="text-cyan-400 font-light text-xs tracking-normal">CONTROL ROOM</span>
               </h1>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-800/80">
-                v1.0
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800/70 flex items-center gap-1">
-                <Cpu className="w-3 h-3 text-purple-400" /> Gemma 4 Agent
+              <span className="text-xs font-mono text-slate-400">v1.0</span>
+              <span className="text-slate-600">|</span>
+              <span className="text-xs font-mono text-cyan-400 flex items-center gap-1">
+                <Cpu className="w-3.5 h-3.5 text-cyan-400" /> AI Risk Engine
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block">
@@ -77,13 +76,13 @@ export default function Header({
 
         {/* Master Control Room Status Indicator */}
         <div className="flex items-center gap-2">
-          <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold tracking-wide flex items-center gap-2 transition-all ${statusConfig.bgColor}`}>
-            <span className={`w-2.5 h-2.5 rounded-full ${statusConfig.dotColor} animate-ping`} />
+          <div className={`px-3 py-1 bg-slate-900/90 border text-xs font-mono font-bold tracking-wide flex items-center gap-2 transition-all ${statusConfig.borderColor}`}>
+            <span className={`w-2 h-2 rounded-full ${statusConfig.dotColor}`} />
             <StatusIcon className="w-4 h-4 shrink-0" />
-            <span className="uppercase text-[11px] font-mono">{statusConfig.label}</span>
+            <span className="uppercase text-[11px]">{statusConfig.label}</span>
           </div>
 
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-300">
+          <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300">
             <Clock className="w-3.5 h-3.5 text-cyan-400" />
             <span>{timeStr || '00:00:00'}</span>
             <span className="text-slate-500">|</span>
@@ -95,20 +94,20 @@ export default function Header({
         <div className="flex items-center gap-2">
           <button
             onClick={toggleLiveSimulation}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all ${
+            className={`px-2.5 py-1 text-xs font-mono border flex items-center gap-1.5 transition-all ${
               isLiveUpdating
-                ? 'bg-cyan-950/60 text-cyan-300 border-cyan-500/40 hover:bg-cyan-900/50 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
+                ? 'bg-slate-900 text-cyan-300 border-cyan-500/50'
                 : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
             }`}
             title="Toggle telemetry sync"
           >
             <Radio className={`w-3.5 h-3.5 ${isLiveUpdating ? 'text-cyan-400 animate-pulse' : 'text-slate-500'}`} />
-            <span className="hidden md:inline font-mono">{isLiveUpdating ? 'Sync ON' : 'Paused'}</span>
+            <span className="hidden md:inline">{isLiveUpdating ? 'Sync ON' : 'Paused'}</span>
           </button>
 
           <button
             onClick={onOpenHardware}
-            className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all flex items-center gap-1.5 font-mono"
+            className="px-2.5 py-1 text-xs font-mono bg-slate-900 text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all flex items-center gap-1.5"
             title="ESP32 Wiring & Firmware Code"
           >
             <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
@@ -117,7 +116,7 @@ export default function Header({
 
           <button
             onClick={onReset}
-            className="p-1.5 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all"
+            className="p-1 bg-slate-900 text-slate-400 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all"
             title="Reset All Sensors to Nominal State"
           >
             <RotateCcw className="w-3.5 h-3.5" />
